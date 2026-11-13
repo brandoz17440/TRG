@@ -19,6 +19,7 @@ The full TRG selection program as a single-page web app: 10-day roster strip, ev
 - Your log lives in your browser on your device. Other people using the same site never see it, and nothing syncs between devices.
 - **Back it up:** Setup, Backup, **Export backup**. On iPhone, save the file to Files. To restore it or move to a new phone, use **Import backup** on the new device.
 - Safari deletes saved data for websites not used for 7 days. Home Screen web apps keep their own count of days of use, and WebKit says it does not expect their data to be deleted. Export a backup at the end of each cycle anyway.
+- Your own changes to sessions and finishers (**Edit session**, **Edit finisher** on any training day) and your 1RMs are part of the same log and the same backup.
 - **Coming from the Claude app version?** Open TRG Selection Program in Claude, go to Setup, Export backup, then Import backup here.
 
 ## Sharing it
@@ -27,4 +28,4 @@ Send the site address. Each person sets their own start date, course and fitness
 
 ## Updating
 
-Upload the new `index.html` and `sw.js` over the old ones. The app checks the network first, so the next open shows the new version. Logs stay where they are.
+Upload the new `index.html` and `sw.js` over the old ones. The app checks the network first, so the next open shows the new version. Logs, session edits and 1RMs stay where they are.

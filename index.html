@@ -275,6 +275,23 @@ details.mv.on>summary{color:var(--ink)}
 .card.danger{border-color:var(--red)}
 .hidden{display:none!important}
 @media (prefers-reduced-motion:no-preference){.fade{animation:fade .18s ease-out}@keyframes fade{from{opacity:.4}to{opacity:1}}}
+/* session editor and 1RM estimate */
+.edrow{gap:8px}
+.btn.sm{min-height:40px;padding:0 12px;font-size:14px}
+.banner.ed{background:var(--bluebg);border:1px solid var(--blue)}
+.lnk{background:none;border:0;padding:0;color:var(--blue);font:inherit;font-weight:600;text-decoration:underline;cursor:pointer;min-height:0}
+.editor{border-color:var(--blue)}
+.editor h3{margin-top:6px}
+.etab,.efin{border-top:1px solid var(--line);padding-top:12px}
+.erow{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface2)}
+.erow .in{background:var(--surface)}
+.ecells{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px}
+.ectl{display:flex;gap:6px;justify-content:flex-end}
+.mini-btn{min-height:36px;min-width:40px;padding:0 10px;border-radius:7px;border:1px solid var(--line);background:var(--surface);font-size:14px;font-weight:600;cursor:pointer;color:var(--ink)}
+.mini-btn.del{color:var(--red);border-color:var(--red)}
+.est{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--muted);margin-top:8px;font-variant-numeric:tabular-nums}
+.est .mini-btn{color:var(--blue);border-color:var(--blue)}
+.rm .pc.src{margin-top:-4px;color:var(--faint)}
 </style>
 </head>
 <body>
@@ -353,17 +370,17 @@ const clone = x => JSON.parse(JSON.stringify(x));
 const txt = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
 
 /* ---------------- state ---------------- */
-const DEF = { a1Start: "", courseDate: "", testDate: "", testPassed: false, rhrBase: "", tt1600: "", vestKg: "", oneRM: {}, rename: {}, age: "", moves: {}, kit: {} };
+const DEF = { a1Start: "", courseDate: "", testDate: "", testPassed: false, rhrBase: "", tt1600: "", vestKg: "", oneRM: {}, oneRMsrc: {}, rename: {}, age: "", moves: {}, kit: {} };
 const DEFKIT = Object.assign({ skip: "Rope", back: "", emc: "A" }, P.defaultKit || {});
 function normS(x) {
   x = x || {};
   const o = Object.assign({}, DEF, x);
   o.oneRM = Object.assign({}, x.oneRM || {}); o.rename = Object.assign({}, x.rename || {});
-  o.moves = Object.assign({}, x.moves || {}); o.kit = Object.assign({}, DEFKIT, x.kit || {});
+  o.moves = Object.assign({}, x.moves || {}); o.kit = Object.assign({}, DEFKIT, x.kit || {}); o.oneRMsrc = Object.assign({}, x.oneRMsrc || {});
   return o;
 }
 let S = normS({});
-let LOGS = {}, REV = {};
+let LOGS = {}, REV = {}, EDITS = {};
 let SCHED;
 let ui = { tab: "today", sel: null, cycle: null, fromCycle: null, lift: null, msg: "", importData: null };
 let db = null, mode = "connecting", readOnly = false, lastErr = "";
@@ -372,11 +389,11 @@ const LSK = "trg_program_v1";
 function lsLoad() {
   try {
     const x = JSON.parse(localStorage.getItem(LSK) || "null");
-    if (x) { S = normS(x.S); LOGS = x.LOGS || {}; REV = x.REV || {}; }
+    if (x) { S = normS(x.S); LOGS = x.LOGS || {}; REV = x.REV || {}; EDITS = x.EDITS || {}; }
   } catch (e) { /* storage unavailable */ }
 }
 let lsT = null;
-function lsSave() { clearTimeout(lsT); lsT = setTimeout(() => { try { localStorage.setItem(LSK, JSON.stringify({ S, LOGS, REV })); } catch (e) { /* ignore */ } }, 300); }
+function lsSave() { clearTimeout(lsT); lsT = setTimeout(() => { try { localStorage.setItem(LSK, JSON.stringify({ S, LOGS, REV, EDITS })); } catch (e) { /* ignore */ } }, 300); }
 
 /* ---------------- sync ---------------- */
 const pend = new Map(), busy = new Set();
@@ -462,6 +479,7 @@ async function initDb() {
   };
   watch("logs", LOGS);
   watch("reviews", REV);
+  watch("edits", EDITS);
 }
 
 /* ---------------- schedule ---------------- */
@@ -508,7 +526,7 @@ function resolve(inst, d) {
         : off === 0 ? P.testDay : { kind: "rest", src: off === 1 ? "Day after the test" : "SASR taper 12." + (off === -3 ? "4" : "6") };
     }
   }
-  return { inst, d, t, date, s, key, ov, tpl, phase: tpl.phase, moved: t !== d };
+  return withEdits({ inst, d, t, date, s, key, ov, tpl, phase: tpl.phase, moved: t !== d });
 }
 function slotFor(date) {
   if (!isISO(S.a1Start)) return null;
@@ -518,8 +536,8 @@ function slotFor(date) {
   if (ci < SCHED.seq.length) return resolve(SCHED.seq[ci], d);
   if (isISO(S.courseDate) && dnum(date) < dnum(S.courseDate)) {
     const to = dnum(S.courseDate) - dnum(date), rest = d === 5 || d === 6 || to <= 2;
-    return { gap: true, date, d, key: "GAP_" + date, phase: "B", inst: { iid: "GAP", tpl: "S9" },
-      s: rest ? { kind: "rest", src: to <= 2 ? "Last 2 days before the course" : "Your rule" } : P.gap };
+    return withEdits({ gap: true, date, d, key: "GAP_" + date, phase: "B", inst: { iid: "GAP", tpl: "S9" },
+      s: rest ? { kind: "rest", src: to <= 2 ? "Last 2 days before the course" : "Your rule" } : P.gap });
   }
   return { after: true, date };
 }
@@ -668,21 +686,24 @@ function hydrate(root, slot, scope, pre) {
       const name = (l.childNodes[0] ? l.childNodes[0].textContent : "").trim();
       const sub = $(".sb", l), scheme = txt(td[1]), load = txt(td[2]), rest = txt(td[3]);
       const nsets = $$("td.w", tr).length, reps = (scheme.split("x")[1] || "").trim();
-      const pct = load.match(/(\d+)-(\d+)%/);
+      const pct = load.match(/(\d+)(?:\s*-\s*(\d+))?\s*%/), plo = pct ? +pct[1] : 0, phi = pct ? +(pct[2] || pct[1]) : 0;
+      let i1 = null, i2 = null;
       const card = h("div", { class: "ex" }, h("div", { class: "exh" }, h("b", { text: nm(name) }), nm(name) !== name ? h("span", { class: "was", text: "was " + name }) : null, sub ? h("span", { class: "sb", text: txt(sub) }) : null,
         h("span", { class: "s", text: scheme + " · " + load + " · rest " + rest })));
       if (pct) {
         const k1 = "str:" + name + ":1rm", k2 = "str:" + name + ":kg";
-        const i1 = inp(k1, V[k1] != null ? V[k1] : (S.oneRM[name] != null ? S.oneRM[name] : ""), "kg", "decimal");
-        const i2 = inp(k2, get(k2), "kg", "decimal");
-        const sugg = () => { const rm = num(i1.value); i2.placeholder = rm ? "≈ " + (Math.round(rm * (+pct[1] + +pct[2]) / 200 / 2.5) * 2.5) : "kg"; };
-        sugg();
-        i1.addEventListener("input", () => { sugg(); const x = num(i1.value); if (x) { S.oneRM[name] = x; queueSettings(); } });
+        i1 = inp(k1, V[k1] != null ? V[k1] : (S.oneRM[name] != null ? S.oneRM[name] : ""), "kg", "decimal");
+        i2 = inp(k2, get(k2), "kg", "decimal");
+        const sugg = () => { const rm = num(i1.value); i2.placeholder = rm ? "≈ " + (Math.round(rm * (plo + phi) / 200 / 2.5) * 2.5) : "kg"; };
+        sugg(); i1.sugg = sugg;
+        i1.addEventListener("input", () => { sugg(); const x = num(i1.value); if (x && !readOnly) { S.oneRM[name] = x; delete S.oneRMsrc[name]; queueSettings(); } });
         card.append(h("div", { class: "exin" }, h("label", { class: "f" }, "1RM (kg)", i1), h("label", { class: "f" }, "Work kg (" + load + ")", i2)));
       }
-      const sets = h("div", { class: "sets" });
-      for (let i = 1; i <= nsets; i++) { const k = "str:" + name + ":s" + i; sets.append(h("label", { class: "f" }, "Set " + i, inp(k, get(k), reps || "reps", "numeric"))); }
-      card.append(sets); wrap.append(card);
+      const sets = h("div", { class: "sets" }), setIns = [];
+      for (let i = 1; i <= nsets; i++) { const k = "str:" + name + ":s" + i, x = inp(k, get(k), reps || "reps", "numeric"); setIns.push(x); sets.append(h("label", { class: "f" }, "Set " + i, x)); }
+      card.append(sets);
+      if (pct) card.append(rmEstimate(slot, pre, name, i1, i2, setIns, V));
+      wrap.append(card);
     });
     t.replaceWith(wrap);
   });
@@ -752,6 +773,323 @@ function hydrate(root, slot, scope, pre) {
   $$("table.rxt, table.mstrip, table.circ", root).forEach(t => { if (!t.parentNode.classList.contains("tw")) { const w = h("div", { class: "tw" }); t.replaceWith(w); w.append(t); } });
 }
 
+/* ---------------- program edits (user's own changes to sessions and finishers) ---------------- */
+// EDITS docs: d_<day key> (this day only), t_<template>_D<n> (every time the session runs: its cycle + Holds), f_<finisher key> (that finisher everywhere)
+const esc = v => String(v == null ? "" : v).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const DP = new DOMParser();
+function frag(html) { return DP.parseFromString("<div id=\"x\">" + (html || "") + "</div>", "text/html").getElementById("x"); }
+const plain = html => frag(html).textContent.replace(/\s+/g, " ").trim();
+function cellText(td) { const c = td.cloneNode(true); $$(".sb,.was", c).forEach(x => x.remove()); return c.textContent.replace(/\s+/g, " ").trim(); }
+const FINBANK = {}; P.cycles.forEach(c => c.days.forEach(s => { if (s.fin && !FINBANK[s.fin.key]) FINBANK[s.fin.key] = s.fin; }));
+const FIN_RULE_HTML = (() => { const f = Object.values(FINBANK)[0]; if (!f) return ""; const p = $$("p.small", frag(f.body)).find(x => /^Finisher:/.test(x.textContent.trim())); return p ? p.outerHTML : ""; })();
+const STD_HEAD = '<tr><th class="l">Exercise</th><th>Reps / dist</th><th>Load</th></tr>';
+function ticksHtml(n, lab) { n = Math.max(0, Math.min(20, parseInt(n, 10) || 0)); if (!n) return ""; let b = ""; for (let i = 1; i <= n; i++) b += "<span>" + i + "</span>"; return '<div class="ticks"><b>' + esc(lab || "Rounds") + "</b>" + b + "</div>"; }
+const paras = text => String(text || "").split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+const paraHtml = x => '<p class="rx">' + esc(x).replace(/\bADAPT\b/g, '<span class="ad">ADAPT</span>').replace(/\n/g, "<br>") + "</p>";
+function parasHtml(text) { return paras(text).map(paraHtml).join(""); }
+function rxText(html) { const r = patchHR(frag(html)); return $$("p.rx", r).filter(p => !p.closest(".swap")).map(p => p.textContent.replace(/[ \t\r\n]+/g, " ").trim()).join("\n\n"); }
+function readTable(t, id, kind) {
+  const trs = $$("tr", t), first = trs[0], hasHead = !!(first && first.querySelector("th"));
+  let head = hasHead ? Array.from(first.children).map(c => cellText(c)) : [];
+  const body = trs.slice(hasHead ? 1 : 0);
+  if (kind === "st") head = head.slice(0, 4);
+  const ncol = kind === "st" ? 4 : Math.max(head.length, ...body.map(r => r.children.length), 1);
+  while (head.length < ncol) head.push("");
+  const rows = body.map(tr => { const tds = Array.from(tr.children).slice(0, ncol); while (tds.length < ncol) tds.push(null); return tds.map(td => td ? { t: cellText(td), h: td.innerHTML, ot: cellText(td) } : { t: "", h: "", ot: null }); });
+  return { id, kind, cls: t.className, hh: hasHead ? first.outerHTML : "", head, firstL: !!(body[0] && body[0].children[0] && body[0].children[0].classList.contains("l")), rows };
+}
+// editable tables: exercise lists in the session text, the strength sheet in the log (not the water-swap or fitness-test tables)
+const edEls = (root, kind) => kind === "st" ? $$("table.st", root).filter(t => !t.classList.contains("tst")) : $$("table.rxt", root).filter(t => !t.closest(".swap"));
+function edTables(body, log) {
+  const out = [];
+  edEls(frag(body), "rxt").forEach((t, i) => out.push(readTable(t, "b" + i, "rxt")));
+  edEls(frag(log), "st").forEach((t, i) => out.push(readTable(t, "l" + i, "st")));
+  return out;
+}
+const serTable = t => ({ kind: t.kind, cls: t.cls, hh: t.hh, firstL: t.firstL, rows: t.rows.filter(r => r.some(c => (c.t || "").trim())).map(r => r.map(c => (c.ot != null && c.t === c.ot) ? c.h : esc((c.t || "").trim()))) });
+const tableSig = t => JSON.stringify(t.rows.filter(r => r.some(c => (c.t || "").trim())).map(r => r.map(c => (c.t || "").trim())));
+function buildTable(te) {
+  if (te.kind === "st") {
+    const rows = te.rows.map(r => {
+      const sets = Math.max(1, Math.min(10, parseInt((plain(r[1] || "").match(/(\d+)\s*x/i) || [])[1] || "1", 10)));
+      return '<tr><td class="l">' + (r[0] || "") + "</td><td>" + (r[1] || "") + "</td><td>" + (r[2] || "") + "</td><td>" + (r[3] || "") + '</td><td class="kg"></td><td class="kg"></td>' + '<td class="w"></td>'.repeat(sets) + "</tr>";
+    }).join("");
+    return '<table class="' + te.cls + '">' + te.hh + rows + "</table>";
+  }
+  const rows = te.rows.map(r => "<tr>" + r.map((c, j) => "<td" + (j === 0 && te.firstL ? ' class="l"' : "") + ">" + c + "</td>").join("") + "</tr>").join("");
+  return '<table class="' + te.cls + '">' + (te.hh || STD_HEAD) + rows + "</table>";
+}
+function patchHtml(html, prefix, kind, tables, text) {
+  const root = frag(html);
+  if (tables) {
+    const found = edEls(root, kind);
+    found.forEach((t, i) => { const te = tables[prefix + i]; if (te) t.replaceWith(frag(buildTable(te)).firstElementChild); });
+    Object.keys(tables).forEach(k => { if (k.indexOf(prefix) === 0 && +k.slice(prefix.length) >= found.length) root.append(frag(buildTable(tables[k])).firstElementChild); });
+  }
+  if (text != null) {
+    // paragraph by paragraph, so text between tables stays put and untouched paragraphs keep their formatting
+    const ps = $$("p.rx", root).filter(p => !p.closest(".swap")), np = paras(text), cur = $$("p.rx", patchHR(frag(html))).filter(p => !p.closest(".swap")).map(p => normT(p.textContent));
+    const mk = x => frag(paraHtml(x)).firstElementChild;
+    if (!ps.length) { root.prepend(...np.map(mk)); return root.innerHTML; }
+    np.forEach((x, i) => {
+      if (i < ps.length) { if (normT(x) !== cur[i]) ps[i].replaceWith(mk(x)); }
+      else { const last = $$("p.rx", root).filter(p => !p.closest(".swap")).pop() || ps[ps.length - 1]; last.insertAdjacentElement("afterend", mk(x)); }
+    });
+    ps.slice(np.length).forEach(p => p.remove());
+  }
+  return root.innerHTML;
+}
+function setRounds(log, n) {
+  const root = frag(log), t = $(".ticks", root), lab = t ? txt($("b", t)) : "Rounds", nt = frag(ticksHtml(n, lab)).firstElementChild;
+  if (t) { if (nt) t.replaceWith(nt); else t.remove(); } else if (nt) root.prepend(nt);
+  return root.innerHTML;
+}
+function editFin(f, e) {
+  const o = Object.assign({}, f);
+  if (e.title != null) o.title = e.title;
+  if (e.mins != null) o.mins = e.mins;
+  if (e.text != null || e.tables) o.body = patchHtml(f.body, "fb", "rxt", e.tables, e.text);
+  if (e.rounds != null) o.log = setRounds(f.log, e.rounds);
+  o.plan = o.title + " (~" + o.mins + " min)";
+  return o;
+}
+function customFin(c, kind) {
+  const rows = (c.rows || []);
+  const body = parasHtml(c.text) + (rows.length ? buildTable({ kind: "rxt", cls: "rxt c", hh: STD_HEAD, firstL: true, rows }) : "") + (kind === "str" ? FIN_RULE_HTML : "");
+  const log = ticksHtml(c.rounds, "Rounds") + '<div class="flds c2"><div class="fld"><span>Total time</span><i></i></div><div class="fld"><span>Notes</span><i></i></div></div>';
+  return { key: "custom", title: c.title || "My finisher", src: "Your finisher", mins: c.mins || "10", body, log, plan: (c.title || "My finisher") + " (~" + (c.mins || "10") + " min)" };
+}
+const finWithBank = ref => FINBANK[ref] ? (EDITS["f_" + ref] ? editFin(FINBANK[ref], EDITS["f_" + ref]) : FINBANK[ref]) : null;
+const CMP = new WeakMap();
+function compile(base, docs) {
+  const fk = base.fin ? base.fin.key : "";
+  const bankRef = docs.reduce((r, d) => (d.fin && d.fin.mode === "bank") ? d.fin.ref : r, fk);
+  const sig = docs.map(d => d.id + ":" + (d.updatedAt || 0)).join("|") + "|" + (bankRef && EDITS["f_" + bankRef] ? EDITS["f_" + bankRef].updatedAt : "");
+  let m = CMP.get(base); if (!m) { m = new Map(); CMP.set(base, m); }
+  if (m.has(sig)) return m.get(sig);
+  const s = Object.assign({}, base);
+  let title = null, text = null, fin = null; const tables = {};
+  docs.forEach(d => { if (d.title != null) title = d.title; if (d.text != null) text = d.text; if (d.tables) Object.assign(tables, d.tables); if (d.fin) fin = d.fin; });
+  if (title != null) s.title = esc(title);
+  const tk = Object.keys(tables);
+  if (tk.length || text != null) s.body = patchHtml(base.body, "b", "rxt", tables, text);
+  if (tk.some(k => k.charAt(0) === "l")) {
+    s.log = patchHtml(base.log, "l", "st", tables, null);
+    const te = tables.l0;
+    if (te && base.kind === "str") { const rows = te.rows.map(r => r.map(plain)), main = rows.filter(r => /%/.test(r[2] || "")); if (main.length) s.plan = esc(main[0][1] + " at " + main[0][2] + ": " + main.slice(0, 2).map(r => r[0]).join(", ")); }
+  }
+  let f = fin ? (fin.mode === "none" ? null : fin.mode === "custom" ? customFin(fin.custom || {}, base.kind) : (FINBANK[fin.ref] || null)) : (base.fin || null);
+  if (f && f.key !== "custom" && EDITS["f_" + f.key]) { f = editFin(f, EDITS["f_" + f.key]); s.finEdited = true; }
+  if (f && fin && fin.mode === "bank" && fin.edit) f = editFin(f, fin.edit);
+  if (f) s.fin = f; else delete s.fin;
+  s.edits = docs.map(d => d.id.charAt(0));
+  m.set(sig, s);
+  return s;
+}
+function tplDocId(slot) { return slot.ov == null && !slot.gap && slot.inst && CYC[slot.inst.tpl] && slot.t != null ? "t_" + slot.inst.tpl + "_D" + (slot.t + 1) : null; }
+function withEdits(slot) {
+  if (!slot || !slot.s || slot.s.kind === "rest") return slot;
+  const tid = tplDocId(slot), docs = [tid ? EDITS[tid] : null, EDITS["d_" + slot.key]].filter(Boolean);
+  const fk = slot.s.fin && slot.s.fin.key;
+  if (!docs.length && !(fk && EDITS["f_" + fk])) return slot;
+  slot.base = slot.s; slot.s = compile(slot.s, docs);
+  return slot;
+}
+function putEdit(id, doc) { if (readOnly) return; doc.id = id; doc.updatedAt = Date.now(); EDITS[id] = doc; queue("edits/" + id, doc); }
+function removeEdit(id) {
+  if (readOnly || !EDITS[id]) return;
+  delete EDITS[id]; lsSave();
+  const p = pend.get("edits/" + id); if (p) { clearTimeout(p.t); pend.delete("edits/" + id); }
+  if (db) db.doc("edits/" + id).delete().catch(() => { lastErr = "Couldn't remove that edit from your account. Try again."; setSync("err"); });
+}
+
+/* ---------------- 1RM from a logged set (SASR load table) ---------------- */
+const RM_TABLE = [[1, 100], [2, 95], [3, 90], [5, 85], [8, 80], [10, 75], [12, 70], [15, 65]];
+function pctFor(r) {
+  if (r <= 1) return 100;
+  if (r > 15) return 100 / (1 + r / 30); // past the table: Epley
+  for (let i = 1; i < RM_TABLE.length; i++) { const a = RM_TABLE[i - 1], b = RM_TABLE[i]; if (r <= b[0]) return a[1] + (b[1] - a[1]) * (r - a[0]) / (b[0] - a[0]); }
+  return 65;
+}
+const e1rm = (kg, r) => Math.round(kg / (pctFor(r) / 100)); // whole kg, matching the booklet example (80 / 0.75 = 107)
+function saveRM(name, c, slot) {
+  if (readOnly) return;
+  S.oneRM[name] = c.e; S.oneRMsrc[name] = { kg: c.kg, reps: c.r, date: slot.date || todayISO(), key: slot.key };
+  queueSettings();
+}
+function rmEstimate(slot, pre, name, i1, i2, setIns, V) {
+  const k3 = pre + "str:" + name + ":e1rm", k1 = pre + "str:" + name + ":1rm";
+  const box = h("div", { class: "est hidden", "aria-live": "polite" });
+  const calc = () => {
+    const kg = num(i2.value), reps = setIns.map(x => num(x.value)).filter(r => r && r > 0 && r <= 50);
+    if (!kg || kg <= 0 || !reps.length) return null;
+    const r = Math.max.apply(null, reps);
+    return { e: e1rm(kg, r), kg, r };
+  };
+  const syncBox = () => { const lv = (LOGS[slot.key] && LOGS[slot.key].v) || {}; if (lv[k1] == null || lv[k1] === "") { i1.value = S.oneRM[name] != null ? S.oneRM[name] : ""; if (i1.sugg) i1.sugg(); } };
+  // the line and button are built once and updated in place: a tap on Use this blurs the set box first, and a rebuilt button would lose the tap
+  const line = h("span"), use = h("button", { type: "button", class: "mini-btn" }, "Use this");
+  let cur = null;
+  use.addEventListener("click", () => { if (!cur) return; saveRM(name, cur, slot); syncBox(); show(false); });
+  box.append(line, use);
+  const show = commit => {
+    const c = calc(); cur = c;
+    if (commit && !readOnly) {
+      const was = num(LOGS[slot.key] && LOGS[slot.key].v ? LOGS[slot.key].v[k3] : null);
+      if (c && c.e !== was) setVal(slot, k3, c.e); else if (!c && was != null) setVal(slot, k3, "");
+      const saved = num(S.oneRM[name]);
+      if (c && (!saved || (c.e > saved && c.e <= saved * 1.3))) { saveRM(name, c, slot); syncBox(); }
+    }
+    box.classList.toggle("hidden", !c);
+    if (!c) return;
+    const saved = num(S.oneRM[name]), src = S.oneRMsrc[name];
+    const from = "Est. 1RM " + c.e + " kg from " + c.kg + " kg x " + c.r + " (SASR load table). ";
+    line.textContent = from + (saved === c.e ? (src && src.key === slot.key ? "Saved as your 1RM." : "Matches your saved 1RM.")
+      : saved && c.e > saved ? "Well above your saved " + saved + " kg, so it wasn't saved. Check the entry."
+      : saved ? "Your saved 1RM stays " + saved + " kg: it only rises on its own." : "");
+    use.classList.toggle("hidden", saved === c.e || readOnly);
+  };
+  [i2].concat(setIns).forEach(x => { x.addEventListener("input", () => show(false)); x.addEventListener("change", () => show(true)); });
+  show(false);
+  return box;
+}
+function liftsAll() {
+  const out = LIFTS.slice();
+  Object.keys(S.oneRM || {}).forEach(n => { if (out.indexOf(n) < 0) out.push(n); });
+  Object.values(LOGS).forEach(x => Object.keys((x && x.v) || {}).forEach(k => { const m = /^str:(.+):kg$/.exec(k); if (m && out.indexOf(m[1]) < 0 && num(x.v[k])) out.push(m[1]); }));
+  return out;
+}
+function logE1rm(x, n) {
+  const v = x.v || {}, st = num(v["str:" + n + ":e1rm"]); if (st) return st;
+  const kg = num(v["str:" + n + ":kg"]); if (!kg) return null;
+  const reps = Object.keys(v).filter(k => k.indexOf("str:" + n + ":s") === 0).map(k => num(v[k])).filter(r => r && r > 0);
+  return reps.length ? e1rm(kg, Math.max.apply(null, reps)) : null;
+}
+
+/* ---------------- session editor ---------------- */
+function finDraft(f) {
+  if (!f) return { mode: "none" };
+  const t = $("table.rxt", frag(f.body)), tk = $(".ticks", frag(f.log));
+  return { mode: f.key === "custom" ? "custom" : "bank", ref: f.key, title: f.title, mins: String(f.mins), text: rxText(f.body),
+    table: t ? readTable(t, "fb0", "rxt") : { id: "fb0", kind: "rxt", cls: "rxt c", hh: STD_HEAD, head: ["Exercise", "Reps / dist", "Load"], firstL: true, rows: [] },
+    rounds: tk ? String($$("span", tk).length) : (f.key === "custom" ? "0" : null), everywhere: false };
+}
+function draftFrom(s) { return { title: plain(s.title), text: rxText(s.body), tables: edTables(s.body, s.log), fin: finDraft(s.fin) }; }
+function tplDocsFor(slot) { const tid = tplDocId(slot); return tid && EDITS[tid] ? [EDITS[tid]] : []; }
+function srcFor(slot, scope) { const base = slot.base || slot.s; return scope === "tpl" ? compile(base, tplDocsFor(slot)) : slot.s; }
+function baselineFor(slot, scope) { const base = slot.base || slot.s; return scope === "tpl" ? compile(base, []) : compile(base, tplDocsFor(slot)); }
+const normT = v => String(v || "").replace(/\s+/g, " ").trim();
+function finDiff(fd, ref) {
+  const b = finDraft(ref), e = {};
+  if (normT(fd.title) !== normT(b.title)) e.title = fd.title.trim();
+  if (normT(fd.mins) !== normT(b.mins)) e.mins = fd.mins.trim();
+  if (normT(fd.text) !== normT(b.text)) e.text = fd.text;
+  if (tableSig(fd.table) !== tableSig(b.table)) e.tables = { fb0: serTable(fd.table) };
+  if (fd.rounds != null && String(parseInt(fd.rounds, 10) || 0) !== String(parseInt(b.rounds, 10) || 0)) e.rounds = parseInt(fd.rounds, 10) || 0;
+  return e;
+}
+function finSpec(fd) {
+  if (fd.mode === "none") return { mode: "none" };
+  if (fd.mode === "custom") return { mode: "custom", custom: { title: fd.title.trim() || "My finisher", mins: fd.mins.trim() || "10", text: fd.text, rows: serTable(fd.table).rows, rounds: parseInt(fd.rounds, 10) || 0 } };
+  const e = finDiff(fd, finWithBank(fd.ref));
+  return Object.keys(e).length ? { mode: "bank", ref: fd.ref, edit: e } : { mode: "bank", ref: fd.ref };
+}
+function openEditor(slot, scope, toFin) {
+  if (readOnly) return;
+  scope = scope || "day";
+  ui.edit = { key: slot.key, scope, draft: draftFrom(srcFor(slot, scope)), toFin: !!toFin };
+  render();
+  setTimeout(() => { const el = $(toFin ? "#edFin" : "#edTop"); if (el) el.scrollIntoView({ block: "start" }); }, 30);
+}
+function saveEdit(slot) {
+  const e = ui.edit, d = e.draft, scope = e.scope;
+  const bd = draftFrom(baselineFor(slot, scope)), doc = {};
+  if (normT(d.title) && normT(d.title) !== normT(bd.title)) doc.title = d.title.trim();
+  if (normT(d.text) !== normT(bd.text)) doc.text = d.text;
+  const tabs = {};
+  d.tables.forEach(t => { const bt = bd.tables.find(x => x.id === t.id); if (bt ? tableSig(t) !== tableSig(bt) : t.rows.some(r => r.some(c => (c.t || "").trim()))) tabs[t.id] = serTable(t); });
+  if (Object.keys(tabs).length) doc.tables = tabs;
+  let msg = "Saved.";
+  const fs = finSpec(d.fin), bs = finSpec(bd.fin);
+  if (JSON.stringify(fs) !== JSON.stringify(bs)) {
+    if (d.fin.mode === "bank" && d.fin.everywhere && bd.fin.mode === "bank" && d.fin.ref === bd.fin.ref) {
+      const bank = finDiff(d.fin, FINBANK[d.fin.ref]);
+      if (Object.keys(bank).length) putEdit("f_" + d.fin.ref, bank); else removeEdit("f_" + d.fin.ref);
+      msg = "Saved. The finisher change applies everywhere " + d.fin.title + " appears.";
+    } else doc.fin = fs;
+  }
+  const id = scope === "tpl" ? tplDocId(slot) : "d_" + slot.key;
+  if (Object.keys(doc).length) putEdit(id, doc); else removeEdit(id);
+  ui.edit = null; ui.flash = Object.keys(doc).length || msg !== "Saved." ? (scope === "tpl" && Object.keys(doc).length ? "Saved for every time this session runs." : msg) : "No changes from the program, so nothing was saved.";
+  render(); window.scrollTo(0, 0);
+}
+function tableEditor(t, label) {
+  const wrap = h("div", { class: "stack etab" }, h("h3", { text: label }));
+  const ncol = t.head.length;
+  t.rows.forEach((r, i) => {
+    while (r.length < ncol) r.push({ t: "", h: "", ot: null });
+    const mk = (c, j) => { const x = h("input", { class: "in", value: c.t, placeholder: t.head[j] || "", autocomplete: "off", "aria-label": (t.head[j] || "Cell") + ", row " + (i + 1) }); x.addEventListener("input", () => { c.t = x.value; }); return x; };
+    const rest = h("div", { class: "ecells" }, r.slice(1).map((c, j) => h("label", { class: "f" }, t.head[j + 1] || "", mk(c, j + 1))));
+    const mv = (dlt) => { const k = i + dlt; if (k < 0 || k >= t.rows.length) return; const x = t.rows[i]; t.rows[i] = t.rows[k]; t.rows[k] = x; render(); };
+    wrap.append(h("div", { class: "erow" }, h("label", { class: "f" }, (t.head[0] || "Item") + " " + (i + 1), mk(r[0], 0)), ncol > 1 ? rest : null,
+      h("div", { class: "ectl" }, h("button", { type: "button", class: "mini-btn", "aria-label": "Move up", onclick: () => mv(-1) }, "↑"), h("button", { type: "button", class: "mini-btn", "aria-label": "Move down", onclick: () => mv(1) }, "↓"),
+        h("button", { type: "button", class: "mini-btn del", onclick: () => { t.rows.splice(i, 1); render(); } }, "Remove"))));
+  });
+  wrap.append(h("button", { class: "btn ghost", type: "button", onclick: () => { t.rows.push(t.head.map(() => ({ t: "", h: "", ot: null }))); render(); } }, "+ Add " + (t.kind === "st" ? "exercise" : "row")));
+  if (t.kind === "st") wrap.append(h("p", { class: "small", text: "Sets x reps like 3 x 10 sets the set boxes. A load like 65-75% or 80% gives the lift a 1RM and work-kg box; anything else (max, explosive) logs reps only." }));
+  return wrap;
+}
+function editorCard(slot) {
+  const e = ui.edit, d = e.draft;
+  const tid = tplDocId(slot), canTpl = !!tid;
+  const box = h("div", { class: "card stack editor", id: "edTop" }, h("h2", { text: "Edit session" }));
+  if (canTpl) {
+    const runs = SCHED.seq.filter(x => x.tpl === slot.inst.tpl && x.iid !== slot.inst.tpl).map(x => x.iid);
+    box.append(h("div", { class: "seg" }, [["day", "This day only"], ["tpl", "Every time it runs"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String(e.scope === k), onclick: () => { if (e.scope === k) return; e.scope = k; e.draft = draftFrom(srcFor(slot, k)); render(); } }, l))),
+      h("p", { class: "small", text: e.scope === "tpl" ? "Applies to " + slot.inst.tpl + " D" + (slot.t + 1) + (runs.length ? " and the Hold" + (runs.length > 1 ? "s" : "") + " that repeat" + (runs.length > 1 ? "" : "s") + " it (" + runs.join(", ") + ")" : "") + ". A day with its own edits keeps them." : "Applies to " + (slot.date ? fmt(slot.date) : slot.inst.iid + " D" + (slot.d + 1)) + " only." }));
+  } else box.append(h("p", { class: "small", text: "Applies to this day only." }));
+  const ti = h("input", { class: "in", value: d.title, autocomplete: "off" }); ti.addEventListener("input", () => { d.title = ti.value; });
+  const tx = h("textarea", { class: "in", rows: "7" }); tx.value = d.text; tx.addEventListener("input", () => { d.text = tx.value; });
+  box.append(h("label", { class: "f" }, "Title", ti), h("label", { class: "f" }, "Instructions", tx, h("span", { class: "small", text: "Blank line = new paragraph. Tables, tick boxes and log fields stay as they are." })));
+  d.tables.forEach(t => box.append(tableEditor(t, t.kind === "st" ? "Exercises (sets, reps, load, rest)" : (t.head[0] && t.head[0] !== "Exercise" ? t.head[0] : "Exercise list"))));
+  const s = slot.s;
+  if (!d.tables.some(t => t.id.charAt(0) === "b") && s.kind !== "str") box.append(h("button", { class: "btn ghost", type: "button", onclick: () => { d.tables.push({ id: "b0", kind: "rxt", cls: "rxt c", hh: STD_HEAD, head: ["Exercise", "Reps / dist", "Load"], firstL: true, rows: [[{ t: "", h: "", ot: null }, { t: "", h: "", ot: null }, { t: "", h: "", ot: null }]] }); render(); } }, "+ Add an exercise list"));
+  // finisher
+  const fd = d.fin, fb = h("div", { class: "stack efin", id: "edFin" }, h("h3", { text: "Finisher" }));
+  const sel = h("select", { class: "in", "aria-label": "Finisher" });
+  sel.append(h("option", { value: "none" }, "No finisher"));
+  Object.keys(FINBANK).forEach(k => sel.append(h("option", { value: k }, FINBANK[k].title + " (" + FINBANK[k].src.split(",")[0] + ")")));
+  sel.append(h("option", { value: "custom" }, "Write my own"));
+  sel.value = fd.mode === "bank" ? fd.ref : fd.mode;
+  sel.addEventListener("change", () => {
+    const v = sel.value;
+    d.fin = v === "none" ? { mode: "none" } : v === "custom" ? Object.assign(finDraft(null), { mode: "custom", ref: "custom", title: fd.mode !== "none" ? fd.title : "My finisher", mins: fd.mode !== "none" ? fd.mins : "10", text: fd.mode !== "none" ? fd.text : "", table: fd.mode !== "none" ? fd.table : finDraft({ key: "custom", body: "", log: "" }).table, rounds: fd.rounds || "4", everywhere: false }) : finDraft(finWithBank(v));
+    render(); setTimeout(() => { const el = $("#edFin"); if (el) el.scrollIntoView({ block: "start" }); }, 30);
+  });
+  fb.append(sel);
+  if (fd.mode !== "none") {
+    const ft = h("input", { class: "in", value: fd.title, autocomplete: "off" }); ft.addEventListener("input", () => { fd.title = ft.value; });
+    const fm = h("input", { class: "in", value: fd.mins, inputmode: "text", autocomplete: "off" }); fm.addEventListener("input", () => { fd.mins = fm.value; });
+    const fx = h("textarea", { class: "in", rows: "5" }); fx.value = fd.text; fx.addEventListener("input", () => { fd.text = fx.value; });
+    fb.append(h("div", { class: "flds" }, h("label", { class: "f" }, "Finisher title", ft), h("label", { class: "f" }, "Minutes", fm)), h("label", { class: "f" }, "Finisher instructions", fx));
+    fb.append(tableEditor(fd.table, "Finisher exercises"));
+    if (fd.rounds != null) { const fr = h("input", { class: "in", value: fd.rounds, inputmode: "numeric", autocomplete: "off" }); fr.addEventListener("input", () => { fd.rounds = fr.value; }); fb.append(h("label", { class: "f" }, "Rounds to tick off (0 = none)", fr)); }
+    if (fd.mode === "bank") {
+      const cb = h("button", { type: "button", class: "tog", "aria-pressed": String(!!fd.everywhere), style: "padding:0 12px" }, fd.everywhere ? "✓ Change it everywhere it appears" : "Change it everywhere it appears");
+      cb.addEventListener("click", () => { fd.everywhere = !fd.everywhere; cb.setAttribute("aria-pressed", String(fd.everywhere)); cb.textContent = (fd.everywhere ? "✓ " : "") + "Change it everywhere it appears"; });
+      fb.append(cb, h("p", { class: "small", text: "Off: the finisher change follows the choice at the top. On: every day that uses " + fd.title + " gets the change." }));
+      if (EDITS["f_" + fd.ref]) fb.append(h("button", { class: "btn ghost", type: "button", onclick: () => { removeEdit("f_" + fd.ref); d.fin = finDraft(finWithBank(fd.ref)); render(); } }, "Put " + FINBANK[fd.ref].title + " back to the program everywhere"));
+    }
+  }
+  box.append(fb);
+  const cur = e.scope === "tpl" ? tid : "d_" + slot.key;
+  box.append(...[h("div", { class: "row" }, h("button", { class: "btn pri", type: "button", onclick: () => saveEdit(slot) }, "Save"),
+    h("button", { class: "btn ghost", type: "button", onclick: () => { ui.edit = null; render(); } }, "Cancel")),
+    EDITS[cur] ? h("button", { class: "btn ghost", type: "button", onclick: () => { removeEdit(cur); ui.edit = null; ui.flash = e.scope === "tpl" ? "Back to the program for every time this session runs." : "This day is back to the program."; render(); window.scrollTo(0, 0); } }, e.scope === "tpl" ? "Reset to program (every time)" : "Reset this day to program") : null,
+    h("p", { class: "small", text: "Logs stay attached by exercise name: rename a lift here and its old entries stay under the old name. The printed booklet keeps the program as written." })].filter(Boolean));
+  return box;
+}
+
 /* ---------------- views ---------------- */
 function cycLabel(tpl) { return h("span", { html: tpl.label + " · SASR Week " + tpl.wk }); }
 function startCard() {
@@ -766,6 +1104,7 @@ function dayBlock(slot) {
   const s = slot.s, d = slot.d, inst = slot.inst, isB = slot.phase === "B";
   const el = h("section", { class: "stack" + (isB ? " B" : "") });
   const doc = LOGS[slot.key];
+  if (ui.edit && ui.edit.key !== slot.key) ui.edit = null;
   const shift = SHIFTS[d];
   if (ui.fromCycle && SCHED.by[ui.fromCycle]) el.append(h("button", { class: "back", type: "button", onclick: () => { ui.tab = "plan"; ui.cycle = ui.fromCycle; ui.fromCycle = null; ui.sel = null; render(); } }, "‹ Cycle " + ui.fromCycle));
   el.append(h("div", { class: "dayhead" },
@@ -785,6 +1124,12 @@ function dayBlock(slot) {
   el.append(h("h1", { html: s.title }));
   const meta = [s.src ? "<b>" + s.src + "</b>" : "", s.venue, s.dress, s.inten && s.inten !== "-" ? s.inten : ""].filter(Boolean).join(" · ");
   el.append(h("div", { class: "meta", html: meta }));
+  if (ui.edit && !readOnly) { el.append(editorCard(slot)); return el; }
+  const eds = s.edits || [];
+  if (eds.length || s.finEdited) el.append(h("div", { class: "banner ed" }, "Edited by you: " + [eds.indexOf("d") >= 0 ? "this day" : "", eds.indexOf("t") >= 0 ? "every time this session runs" : "", s.finEdited ? "finisher, everywhere it appears" : ""].filter(Boolean).join(" · ") + ". ",
+    readOnly ? null : h("button", { type: "button", class: "lnk", onclick: () => openEditor(slot, eds.indexOf("d") < 0 && eds.indexOf("t") >= 0 ? "tpl" : "day") }, "Edit or reset")));
+  if (!readOnly) el.append(h("div", { class: "row edrow" }, h("button", { class: "btn ghost sm", type: "button", onclick: () => openEditor(slot, "day") }, "Edit session"),
+    h("button", { class: "btn ghost sm", type: "button", onclick: () => openEditor(slot, "day", true) }, s.fin ? "Edit finisher" : "Add a finisher")));
   // quick row
   const done = !!(doc && doc.done);
   const db_ = h("button", { class: "done", type: "button", "aria-pressed": String(done) }, done ? "✓ Done" : "Mark done");
@@ -825,7 +1170,7 @@ function dayBlock(slot) {
     const fd = h("button", { class: "done", type: "button", "aria-pressed": String(!!V["fin:done"]) }, V["fin:done"] ? "✓ Finisher done" : "Mark finisher done");
     fd.addEventListener("click", () => { const on = fd.getAttribute("aria-pressed") !== "true"; fd.setAttribute("aria-pressed", String(on)); fd.textContent = on ? "✓ Finisher done" : "Mark finisher done"; setVal(slot, "fin:done", on); });
     el.append(h("details", { class: "rx fin", open: true }, h("summary", null, "Finisher · ~" + f.mins + " min"),
-      h("div", { class: "rxbody" }, h("h2", { class: "fint", text: f.title }), h("div", { class: "meta", text: f.src + " · straight after strength" })), fb));
+      h("div", { class: "rxbody" }, h("h2", { class: "fint", text: f.title }), h("div", { class: "meta", text: f.src + " · straight after " + (s.kind === "str" ? "strength" : "the main session") })), fb));
     el.append(h("div", { class: "card stack" }, h("h2", { text: "Finisher log" }), fl, fd));
   }
   const rp = renamePanel(namesIn([s.body, s.log, s.fin && s.fin.body])); if (rp) el.append(rp);
@@ -999,10 +1344,10 @@ function viewCycle(v) {
   const list = h("div", { class: "card dlist" });
   for (let d = 0; d < 10; d++) {
     const sl = resolve(inst, d), s = sl.s, rest = s.kind === "rest", done = slotDone(sl), f = famOf(s);
-    const mv = sl.moved && sl.ov == null ? "<b>Moved from D" + (sl.t + 1) + ".</b> " : "";
+    const mv = (sl.moved && sl.ov == null ? "<b>Moved from D" + (sl.t + 1) + ".</b> " : "") + ((s.edits && s.edits.length) || s.finEdited ? "<b>Edited.</b> " : "");
     list.append(h("button", { type: "button", class: "drow" + (rest ? " rest" : ""), style: f ? "--kc:var(--k-" + f[0] + ")" : null, onclick: () => { ui.tab = "today"; ui.fromCycle = inst.iid; ui.sel = sl.date && isISO(S.a1Start) ? { date: sl.date } : { iid: inst.iid, d }; render(); window.scrollTo(0, 0); } },
       h("div", { class: "dn" }, "D" + (d + 1), h("small", { text: sl.date ? fmt(sl.date, { weekday: undefined }) : SHIFTS[d] })),
-      h("div", null, h("div", { class: "tt", html: rest ? "Rest" : s.title }), h("div", { class: "pl", html: mv + (rest ? (s.src || "") : (sl.ov != null ? "Test week overlay" : renamePlan(s.plan) + (s.fin ? " · <b>+ " + s.fin.title + "</b>" : ""))) })),
+      h("div", null, h("div", { class: "tt", html: rest ? "Rest" : s.title }), h("div", { class: "pl", html: mv + (rest ? (s.src || "") : (sl.ov != null ? "Test week overlay" : renamePlan(s.plan) + (s.fin ? " · <b>+ " + esc(s.fin.title) + "</b>" : ""))) })),
       rest ? h("span") : h("span", { class: "ck" + (done ? " on" : ""), "aria-label": done ? "Done" : "Not done" })));
   }
   box.append(list);
@@ -1158,13 +1503,16 @@ function viewProgress(v) {
   box.append(rhr.length ? lineChart(rhr, { title: "Morning RHR", sub: "bpm, from each day's log", ref: num(S.rhrBase), refLabel: "baseline " + S.rhrBase, int: true })
     : emptyChart("Morning RHR", "Enter your morning RHR on each day's log and the trend shows here."));
   // strength
-  const withData = LIFTS.filter(n => logsSorted().some(x => x.v && num(x.v["str:" + n + ":kg"])));
+  const withData = liftsAll().filter(n => logsSorted().some(x => x.v && num(x.v["str:" + n + ":kg"])));
   if (withData.length) {
     if (withData.indexOf(ui.lift) < 0) ui.lift = withData[0];
-    const pts = logsSorted().filter(x => x.v && num(x.v["str:" + ui.lift + ":kg"])).map(x => ({ x: fmt(x.date, { weekday: undefined }), y: num(x.v["str:" + ui.lift + ":kg"]), sub: x.iid + " D" + x.day }));
+    const est = ui.liftView === "e1rm", L = ui.lift;
+    const pts = logsSorted().filter(x => x.v && num(x.v["str:" + L + ":kg"])).map(x => ({ x: fmt(x.date, { weekday: undefined }), y: est ? logE1rm(x, L) : num(x.v["str:" + L + ":kg"]), sub: x.iid + " D" + x.day })).filter(pt => pt.y);
     const seg = h("div", { class: "seg" }, withData.map(n => h("button", { type: "button", "aria-pressed": String(n === ui.lift), onclick: () => { ui.lift = n; render(); } }, nm(n))));
-    const c = lineChart(pts, { title: "Strength: " + nm(ui.lift), sub: "Work kg per session", yfmt: y => y + " kg" });
-    c.insertBefore(seg, c.children[1]); box.append(c);
+    const vseg = h("div", { class: "seg" }, [["kg", "Work kg"], ["e1rm", "Est. 1RM"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String((ui.liftView || "kg") === k), onclick: () => { ui.liftView = k; render(); } }, l)));
+    const c = pts.length ? lineChart(pts, { title: "Strength: " + nm(L), sub: est ? "Estimated 1RM from the best set each session (SASR load table)" : "Work kg per session", yfmt: y => y + " kg", ref: est ? num(S.oneRM[L]) : null, refLabel: "saved " + S.oneRM[L] + " kg" })
+      : emptyChart("Strength: " + nm(L), "Log reps in the set boxes as well as the work kg and the estimate shows here.");
+    c.insertBefore(vseg, c.children[1]); c.insertBefore(seg, c.children[1]); box.append(c);
   } else box.append(emptyChart("Strength", "Log work kg on a strength sheet and each lift gets a chart."));
   // SF body weight circuit
   const bwc = logsSorted().filter(x => /Body Weight Circuit/.test(x.title || "") && x.v && parseTime(x.v["f:Total time"])).map(x => ({ x: fmt(x.date, { weekday: undefined }), y: parseTime(x.v["f:Total time"]), sub: x.iid + " D" + x.day }));
@@ -1273,15 +1621,19 @@ function viewSetup(v) {
     segOf("emc", [["A", "Program A"], ["B", "Program B"]], "SF machine circuit default (each session can switch)")));
   // 1RMs
   const rmList = h("div");
-  LIFTS.forEach(n => {
-    const pc = h("div", { class: "pc" });
-    const paint = () => { const x = num(i.value); pc.textContent = x ? [65, 70, 75, 80, 85, 90].map(p => p + "% " + (Math.round(x * p / 100 / 2.5) * 2.5)).join(" · ") : ""; };
-    const i = h("input", { class: "in", inputmode: "decimal", placeholder: "kg", value: S.oneRM[n] != null ? S.oneRM[n] : "" });
-    i.addEventListener("input", () => { const x = num(i.value); if (x) S.oneRM[n] = x; else delete S.oneRM[n]; queueSettings(); paint(); });
-    paint(); rmList.append(h("div", { class: "rm" }, h("span", null, nm(n), nm(n) !== n ? h("span", { class: "was", text: "was " + n }) : null), i, pc));
+  liftsAll().forEach(n => {
+    const pc = h("div", { class: "pc" }), srcl = h("div", { class: "pc src" });
+    const paint = () => {
+      const x = num(i.value), sr = S.oneRMsrc[n];
+      pc.textContent = x ? [65, 70, 75, 80, 85, 90].map(p => p + "% " + (Math.round(x * p / 100 / 2.5) * 2.5)).join(" · ") : "";
+      srcl.textContent = x && sr && sr.kg ? "Auto: " + sr.kg + " kg x " + sr.reps + (isISO(sr.date) ? " on " + fmt(sr.date) : "") : (x ? "Entered by you" : "");
+    };
+    const i = h("input", { class: "in", inputmode: "decimal", placeholder: "kg", value: S.oneRM[n] != null ? S.oneRM[n] : "", "aria-label": "1RM for " + nm(n) });
+    i.addEventListener("input", () => { if (readOnly) return; const x = num(i.value); if (x) S.oneRM[n] = x; else delete S.oneRM[n]; delete S.oneRMsrc[n]; queueSettings(); paint(); });
+    paint(); rmList.append(h("div", { class: "rm" }, h("span", null, nm(n), nm(n) !== n ? h("span", { class: "was", text: "was " + n }) : null), i, pc, srcl));
   });
   box.append(h("div", { class: "card stack" }, h("h2", { text: "1RM estimates" }),
-    h("p", { class: "small", text: "SASR load table: 15 reps = 65%, 12 = 70%, 10 = 75%, 8 = 80%, 5 = 85%, 3 = 90%. One clean set of 10 at 80kg: 80 / 0.75 = 107kg. Strength sheets fill from here and update it." }), rmList));
+    h("p", { class: "small", text: "Fills itself from your strength logs. Enter the work kg and the reps in the set boxes: the app takes your best set and works out the 1RM from the SASR load table (15 reps = 65%, 12 = 70%, 10 = 75%, 8 = 80%, 5 = 85%, 3 = 90%), so 10 reps at 80 kg = 80 / 0.75 = 107 kg. The saved 1RM only rises on its own; a lower estimate shows a Use this button on the day. Over 30% above the saved figure needs the button too, in case of a typo. Type here to set it yourself." }), rmList));
   // exercise names
   const q = h("input", { class: "in", placeholder: "Search exercises", autocomplete: "off", value: ui.renQ || "" });
   const list = h("div", { class: "stack" });
@@ -1329,14 +1681,15 @@ async function wipeAll() {
   ui.wipe = false;
   for (const [, p] of pend) clearTimeout(p.t);
   pend.clear();
-  const kl = Object.keys(LOGS), kr = Object.keys(REV);
-  kl.forEach(k => delete LOGS[k]); kr.forEach(k => delete REV[k]);
+  const kl = Object.keys(LOGS), kr = Object.keys(REV), ke = Object.keys(EDITS);
+  kl.forEach(k => delete LOGS[k]); kr.forEach(k => delete REV[k]); ke.forEach(k => delete EDITS[k]); ui.edit = null;
   S = normS({}); SCHED = buildSchedule(); lsSave();
   ui.sel = null; ui.cycle = null; ui.msg = "Erasing"; render();
   if (db) {
     let fail = 0;
     for (const k of kl) { try { await db.doc("logs/" + k).delete(); } catch (e) { fail++; } }
     for (const k of kr) { try { await db.doc("reviews/" + k).delete(); } catch (e) { fail++; } }
+    for (const k of ke) { try { await db.doc("edits/" + k).delete(); } catch (e) { fail++; } }
     try { await writeOnce("settings/main", S); } catch (e) { fail++; }
     ui.msg = fail ? fail + " items could not be erased from your account. Try again." : "Everything erased.";
   } else ui.msg = WEB ? "Everything erased on this device." : "Everything erased on this phone.";
@@ -1344,7 +1697,7 @@ async function wipeAll() {
 }
 async function exportData() {
   const name = "trg-log-" + todayISO() + ".json";
-  const data = JSON.stringify({ app: "TRG Selection Program", exported: new Date().toISOString(), settings: S, logs: LOGS, reviews: REV }, null, 1);
+  const data = JSON.stringify({ app: "TRG Selection Program", exported: new Date().toISOString(), settings: S, logs: LOGS, reviews: REV, edits: EDITS }, null, 1);
   if (!WEB && window.claude && window.claude.use) {
     let dl = null; try { dl = await window.claude.use("downloads"); } catch (e) { dl = null; }
     if (dl) {
@@ -1379,17 +1732,18 @@ async function doImport() {
   let n = 0;
   if (x.settings) {
     const xs = x.settings;
-    S = normS(Object.assign({}, S, xs, { oneRM: Object.assign({}, S.oneRM, xs.oneRM || {}), rename: Object.assign({}, S.rename, xs.rename || {}),
+    S = normS(Object.assign({}, S, xs, { oneRM: Object.assign({}, S.oneRM, xs.oneRM || {}), oneRMsrc: Object.assign({}, S.oneRMsrc, xs.oneRMsrc || {}), rename: Object.assign({}, S.rename, xs.rename || {}),
       moves: Object.assign({}, S.moves, xs.moves || {}), kit: Object.assign({}, S.kit, xs.kit || {}) }));
     SCHED = buildSchedule(); queueSettings();
   }
   const merge = (src, store, col) => Object.keys(src || {}).forEach(k => { const a = src[k], b = store[k]; if (!a) return; if (!b || (a.updatedAt || 0) > (b.updatedAt || 0)) { store[k] = a; n++; } });
-  merge(x.logs, LOGS, "logs"); merge(x.reviews, REV, "reviews");
+  merge(x.logs, LOGS, "logs"); merge(x.reviews, REV, "reviews"); merge(x.edits, EDITS, "edits");
   lsSave();
   if (db) {
     ui.msg = "Importing " + n + " entries"; render();
     for (const k of Object.keys(x.logs || {})) { if (LOGS[k] === x.logs[k]) { try { await writeOnce("logs/" + k, LOGS[k]); } catch (e) { /* keep local */ } await new Promise(r => setTimeout(r, 60)); } }
     for (const k of Object.keys(x.reviews || {})) { if (REV[k] === x.reviews[k]) { try { await writeOnce("reviews/" + k, REV[k]); } catch (e) { /* keep local */ } } }
+    for (const k of Object.keys(x.edits || {})) { if (EDITS[k] === x.edits[k]) { try { await writeOnce("edits/" + k, EDITS[k]); } catch (e) { /* keep local */ } } }
   }
   ui.msg = "Imported " + n + " entries."; render();
 }
