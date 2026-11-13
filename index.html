@@ -26,6 +26,7 @@
   --red:#8a2f22; --redbg:#f6e9e5; --good:#2f6b3a; --goodbg:#e4efe2; --bluebg:#e6edf3;
   --day:#f0e2b6; --arvo:#ecceb0; --night:#2c3a52; --night-ink:#ffffff; --off:#d7e5cd;
   --series:#3f4a2b; --grid:#e1e4d8; --focus:#8a6d2b;
+  --pb:var(--blue); --pb-ink:var(--blue-ink);
   --k-str:#2a78d6; --k-run:#eb6834; --k-swim:#1baf7a; --k-pack:#eda100; --k-course:#e87ba4; --k-gpp:#008300; --k-test:#6250d6;
   --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
   --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -65,21 +66,21 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
 h1{font-size:30px;line-height:1.02;text-transform:uppercase;letter-spacing:.01em}
 h2{font-size:20px;text-transform:uppercase;letter-spacing:.03em;color:var(--olive)}
 h3{font-size:16px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
-.B h2{color:var(--blue)}
+.B h2{color:var(--pb)}
 .stack{display:flex;flex-direction:column;gap:14px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
 .muted{color:var(--muted)} .small{font-size:13px;color:var(--muted)}
 .chip{display:inline-block;font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:.07em;padding:1px 7px;border-radius:4px;color:var(--ink);vertical-align:1px}
 .chip.DAY{background:var(--day)} .chip.ARVO{background:var(--arvo)} .chip.NIGHT{background:var(--night);color:var(--night-ink)} .chip.OFF{background:var(--off)}
 .tag{display:inline-block;font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:.07em;padding:1px 7px;border-radius:4px;background:var(--olive);color:var(--olive-ink)}
-.B .tag{background:var(--blue);color:var(--blue-ink)}
+.B .tag{background:var(--pb);color:var(--pb-ink)}
 .ad{display:inline-block;font-family:var(--display);font-weight:700;font-size:10.5px;letter-spacing:.06em;color:#fff;background:var(--red);border-radius:3px;padding:0 4px;vertical-align:1px}
 :root[data-theme="dark"] .ad{color:#1a0f0c}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .ad{color:#1a0f0c}}
 .sb{display:block;font-size:12.5px;color:var(--red);font-weight:400;line-height:1.25}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
 .btn.pri{background:var(--olive);border-color:var(--olive);color:var(--olive-ink)}
-.B .btn.pri{background:var(--blue);border-color:var(--blue);color:var(--blue-ink)}
+.B .btn.pri{background:var(--pb);border-color:var(--pb);color:var(--pb-ink)}
 .btn.ghost{background:transparent}
 .btn:disabled{opacity:.45}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -97,9 +98,9 @@ h3{font-size:16px;text-transform:uppercase;letter-spacing:.05em;color:var(--mute
 .banner.blue{background:var(--bluebg);border:1px solid var(--blue)}
 .quick{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;align-items:end}
 .done{min-height:48px;border-radius:8px;border:2px solid var(--olive);background:transparent;font-family:var(--display);font-weight:700;font-size:17px;letter-spacing:.06em;text-transform:uppercase;color:var(--olive);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
-.B .done{border-color:var(--blue);color:var(--blue)}
+.B .done{border-color:var(--pb);color:var(--pb)}
 .done[aria-pressed="true"]{background:var(--olive);color:var(--olive-ink)}
-.B .done[aria-pressed="true"]{background:var(--blue);color:var(--blue-ink)}
+.B .done[aria-pressed="true"]{background:var(--pb);color:var(--pb-ink)}
 label.f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);letter-spacing:.02em;min-width:0}
 input.in,textarea.in,select.in{width:100%;min-height:44px;border:1px solid var(--line);border-radius:7px;background:var(--surface2);padding:8px 10px;font-size:16px;font-variant-numeric:tabular-nums}
 textarea.in{min-height:84px;resize:vertical}
@@ -107,7 +108,7 @@ input.in:focus,textarea.in:focus{border-color:var(--focus);outline:none;backgrou
 input.in::placeholder{color:var(--faint)}
 details.rx{background:var(--surface);border:1px solid var(--line);border-radius:10px}
 details.rx>summary{list-style:none;cursor:pointer;padding:12px 14px;font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.06em;text-transform:uppercase;display:flex;justify-content:space-between;color:var(--olive)}
-.B details.rx>summary{color:var(--blue)}
+.B details.rx>summary{color:var(--pb)}
 details.rx>summary::-webkit-details-marker{display:none}
 details.rx.fin{border-color:var(--sand)}
 details.rx.fin>summary{color:var(--sand)}
@@ -163,9 +164,9 @@ table.mstrip td.me{background:var(--olive);color:var(--olive-ink)}
 .ticks{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .ticks b{font-family:var(--display);font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);flex-basis:100%}
 .ticks button{width:42px;height:42px;border-radius:7px;border:1.5px solid var(--olive);background:transparent;font-weight:700;color:var(--muted);cursor:pointer;font-variant-numeric:tabular-nums}
-.B .ticks button{border-color:var(--blue)}
+.B .ticks button{border-color:var(--pb)}
 .ticks button.on{background:var(--olive);color:var(--olive-ink)}
-.B .ticks button.on{background:var(--blue);color:var(--blue-ink)}
+.B .ticks button.on{background:var(--pb);color:var(--pb-ink)}
 .tst{display:flex;flex-direction:column;gap:8px}
 .navrow{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;margin-top:4px}
 .navrow .btn:first-child{justify-self:start}.navrow .btn:last-child{justify-self:end}
@@ -174,12 +175,12 @@ table.mstrip td.me{background:var(--olive);color:var(--olive-ink)}
 .phase{display:flex;flex-direction:column;gap:8px}
 .cyrow{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left;width:100%}
 .cyrow .id{font-family:var(--display);font-weight:700;font-size:24px;color:var(--olive);line-height:1}
-.cyrow.B .id{color:var(--blue)}
+.cyrow.B .id{color:var(--pb)}
 .cyrow.H{background:repeating-linear-gradient(135deg,var(--surface),var(--surface) 8px,var(--surface2) 8px,var(--surface2) 16px)}
 .cyrow .t{font-weight:600;font-size:15px}
 .cyrow .d{font-size:12.5px;color:var(--muted)}
 .cyrow.now{border-color:var(--olive);box-shadow:inset 3px 0 0 var(--olive)}
-.cyrow.B.now{border-color:var(--blue);box-shadow:inset 3px 0 0 var(--blue)}
+.cyrow.B.now{border-color:var(--pb);box-shadow:inset 3px 0 0 var(--pb)}
 .bar{width:64px;height:6px;border-radius:3px;background:var(--grid);overflow:hidden}
 .bar i{display:block;height:100%;background:var(--series)}
 .cnt{font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
@@ -242,7 +243,7 @@ details.ref .refbody{padding:0 14px 14px;font-size:14.5px;overflow-x:auto}
 .strip .in2{max-width:600px;margin:0 auto;padding:0 16px 8px}
 .strip .sh{display:flex;gap:8px;align-items:baseline;font-size:12px;color:var(--muted);margin-bottom:5px;font-variant-numeric:tabular-nums}
 .strip .sh b{font-family:var(--display);font-size:15px;letter-spacing:.05em;color:var(--olive)}
-.strip.B .sh b{color:var(--blue)}
+.strip.B .sh b{color:var(--pb)}
 .cells{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:3px}
 .sc{display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 0 4px;min-height:58px;border:1px solid var(--line);border-radius:7px;background:var(--surface);cursor:pointer;box-shadow:inset 0 3px 0 var(--sct,var(--line));min-width:0}
 .sc.DAY{--sct:var(--day)} .sc.ARVO{--sct:var(--arvo)} .sc.NIGHT{--sct:var(--night)} .sc.OFF{--sct:var(--off)}
@@ -292,6 +293,22 @@ details.mv.on>summary{color:var(--ink)}
 .est{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--muted);margin-top:8px;font-variant-numeric:tabular-nums}
 .est .mini-btn{color:var(--blue);border-color:var(--blue)}
 .rm .pc.src{margin-top:-4px;color:var(--faint)}
+/* customise: colour swatches and icon picker */
+.lookf{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted);letter-spacing:.02em}
+.swatches{display:grid;grid-template-columns:repeat(7,minmax(0,44px));gap:6px}
+.sw{width:100%;aspect-ratio:1;height:auto;min-height:36px;border-radius:10px;border:2px solid var(--line);background:var(--swl);cursor:pointer;position:relative;padding:0}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .sw{background:var(--swd)}}
+:root[data-theme="dark"] .sw{background:var(--swd)}
+.sw[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--surface) inset}
+.sw[aria-pressed="true"]::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-weight:700;font-size:18px;text-shadow:0 0 3px rgba(0,0,0,.6)}
+.icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:10px}
+.icopt{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:2px solid transparent;border-radius:14px;padding:6px;cursor:pointer;color:var(--ink);font:inherit;font-size:13px}
+.icopt img{width:60px;height:60px;border-radius:14px;display:block;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.icopt[aria-pressed="true"]{border-color:var(--olive)}
+.icup{width:60px;height:60px;border-radius:14px;border:1.5px dashed var(--muted);display:grid;place-items:center;font-size:24px;color:var(--muted)}
+.wts{display:grid;gap:8px;margin-bottom:12px}
+.wts .wtr{display:grid;grid-template-columns:1fr 104px;gap:10px;align-items:center}
+.wts .wtr .small{display:block}
 </style>
 </head>
 <body>
@@ -370,13 +387,14 @@ const clone = x => JSON.parse(JSON.stringify(x));
 const txt = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
 
 /* ---------------- state ---------------- */
-const DEF = { a1Start: "", courseDate: "", testDate: "", testPassed: false, rhrBase: "", tt1600: "", vestKg: "", oneRM: {}, oneRMsrc: {}, rename: {}, age: "", moves: {}, kit: {} };
+const DEF = { a1Start: "", courseDate: "", testDate: "", testPassed: false, rhrBase: "", tt1600: "", vestKg: "", oneRM: {}, oneRMsrc: {}, rename: {}, age: "", moves: {}, kit: {}, look: {} };
 const DEFKIT = Object.assign({ skip: "Rope", back: "", emc: "A" }, P.defaultKit || {});
 function normS(x) {
   x = x || {};
   const o = Object.assign({}, DEF, x);
   o.oneRM = Object.assign({}, x.oneRM || {}); o.rename = Object.assign({}, x.rename || {});
   o.moves = Object.assign({}, x.moves || {}); o.kit = Object.assign({}, DEFKIT, x.kit || {}); o.oneRMsrc = Object.assign({}, x.oneRMsrc || {});
+  o.look = Object.assign({}, x.look || {});
   return o;
 }
 let S = normS({});
@@ -698,6 +716,12 @@ function hydrate(root, slot, scope, pre) {
         sugg(); i1.sugg = sugg;
         i1.addEventListener("input", () => { sugg(); const x = num(i1.value); if (x && !readOnly) { S.oneRM[name] = x; delete S.oneRMsrc[name]; queueSettings(); } });
         card.append(h("div", { class: "exin" }, h("label", { class: "f" }, "1RM (kg)", i1), h("label", { class: "f" }, "Work kg (" + load + ")", i2)));
+      } else if (/jump/i.test(name)) {
+        const kc = "str:" + name + ":cm";
+        card.append(h("div", { class: "exin" }, h("label", { class: "f" }, "Best distance (cm)", inp(kc, get(kc), "cm", "decimal"))));
+      } else {
+        const kk = "str:" + name + ":kg";
+        card.append(h("div", { class: "exin" }, h("label", { class: "f" }, "Weight (kg)", inp(kk, get(kk), "kg", "decimal"))));
       }
       const sets = h("div", { class: "sets" }), setIns = [];
       for (let i = 1; i <= nsets; i++) { const k = "str:" + name + ":s" + i, x = inp(k, get(k), reps || "reps", "numeric"); setIns.push(x); sets.append(h("label", { class: "f" }, "Set " + i, x)); }
@@ -772,6 +796,136 @@ function hydrate(root, slot, scope, pre) {
   // scroll wrappers for wide tables
   $$("table.rxt, table.mstrip, table.circ", root).forEach(t => { if (!t.parentNode.classList.contains("tw")) { const w = h("div", { class: "tw" }); t.replaceWith(w); w.append(t); } });
 }
+
+/* ---------------- look: light/dark mode, phase colours, web app icon ---------------- */
+// [light, dark] per colour; contrast checked: >= 5.8:1 on the page background and >= 6.8:1 against button text in both modes
+const ACC = { olive: ["Olive", "#3f4a2b", "#a7b97a"], steel: ["Steel blue", "#2c4a63", "#8fb2d0"], navy: ["Navy", "#1f3552", "#94aedb"], charcoal: ["Charcoal", "#33373b", "#c3c7cc"],
+  maroon: ["Maroon", "#6e2433", "#e59aa8"], desert: ["Desert tan", "#74552a", "#d6b878"], teal: ["Teal", "#1b5a59", "#7cc8c1"] };
+const DEFLOOK = { mode: "auto", a: "olive", b: "steel", icon: "trg" };
+const LOOKK = "trg_look_v1", ICONK = "trg_icon_v1";
+const lookOf = x => { const o = Object.assign({}, DEFLOOK, x || {}); if (!ACC[o.a]) o.a = "olive"; if (!ACC[o.b]) o.b = "steel"; if (["auto", "light", "dark"].indexOf(o.mode) < 0) o.mode = "auto"; return o; };
+let lookSig = "";
+function applyLook(L) {
+  L = lookOf(L);
+  const sig = JSON.stringify(L);
+  if (sig === lookSig) return;
+  lookSig = sig;
+  const r = document.documentElement;
+  if (L.mode === "auto") r.removeAttribute("data-theme"); else r.setAttribute("data-theme", L.mode);
+  const a = ACC[L.a], b = ACC[L.b];
+  const lt = "--olive:" + a[1] + ";--olive-ink:#ffffff;--series:" + a[1] + ";--pb:" + b[1] + ";--pb-ink:#ffffff;";
+  const dk = "--olive:" + a[2] + ";--olive-ink:#141810;--series:" + a[2] + ";--pb:" + b[2] + ";--pb-ink:#10161c;";
+  let st = document.getElementById("lookcss");
+  if (!st) { st = document.createElement("style"); st.id = "lookcss"; document.head.appendChild(st); }
+  st.textContent = ":root{" + lt + "}@media (prefers-color-scheme: dark){:root:not([data-theme=\"light\"]){" + dk + "}}:root[data-theme=\"dark\"]{" + dk + "}";
+  $$('meta[name="theme-color"]').forEach(m => {
+    const dark = /dark/.test(m.getAttribute("media") || "");
+    m.setAttribute("content", L.mode === "dark" ? "#111410" : L.mode === "light" ? a[1] : (dark ? "#111410" : a[1]));
+  });
+  try { localStorage.setItem(LOOKK, sig); } catch (e) { /* first-paint cache only */ }
+  if (WEB) applyIcon(L);
+}
+
+// icons are drawn here, so they follow the Phase A colour; your own picture is kept in this browser only
+const ICONS = [["trg", "TRG"], ["target", "Crosshair"], ["strip", "Roster"]];
+let iconImg = null, iconImgSrc = "";
+function iconSource() { try { return localStorage.getItem(ICONK) || ""; } catch (e) { return ""; } }
+function drawIcon(design, size, mask, bg) {
+  const c = document.createElement("canvas"); c.width = c.height = size;
+  const g = c.getContext("2d"), u = size / 512;
+  g.fillStyle = bg; g.fillRect(0, 0, size, size);
+  if (design === "custom" && iconImg) { g.drawImage(iconImg, 0, 0, size, size); return c; }
+  g.save(); g.translate(size / 2, size / 2); const k = mask ? 0.8 : 1; g.scale(u * k, u * k); g.translate(-256, -256);
+  const fg = "#eceee6", gold = "#c2a25a";
+  if (design === "target") {
+    g.strokeStyle = fg; g.lineWidth = 22; g.beginPath(); g.arc(256, 256, 150, 0, Math.PI * 2); g.stroke();
+    g.lineWidth = 12; g.beginPath(); g.arc(256, 256, 78, 0, Math.PI * 2); g.stroke();
+    g.lineWidth = 18; g.lineCap = "butt";
+    [[256, 60, 256, 196], [256, 316, 256, 452], [60, 256, 196, 256], [316, 256, 452, 256]].forEach(l => { g.beginPath(); g.moveTo(l[0], l[1]); g.lineTo(l[2], l[3]); g.stroke(); });
+    g.fillStyle = gold; g.beginPath(); g.arc(256, 256, 16, 0, Math.PI * 2); g.fill();
+  } else if (design === "strip") {
+    g.fillStyle = fg; g.font = "700 150px 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "alphabetic";
+    g.fillText("TRG", 256, 236);
+    const cols = ["#f0e2b6", "#f0e2b6", "#ecceb0", "#ecceb0", "#7f93b8", "#7f93b8", "#d7e5cd", "#d7e5cd", "#d7e5cd", "#d7e5cd"];
+    cols.forEach((col, i) => { g.fillStyle = col; g.fillRect(86 + i * 35, 290, 26, 120); });
+  } else {
+    g.fillStyle = fg; g.font = "700 220px 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "alphabetic";
+    g.fillText("TRG", 256, 290);
+    g.fillStyle = gold; g.fillRect(126, 322, 260, 16);
+    g.fillStyle = "#d8e4c8"; g.font = "600 46px 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif"; g.fillText("SELECTION", 256, 396);
+  }
+  g.restore();
+  return c;
+}
+function setLink(rel, href, extra) {
+  let l = document.querySelector('link[rel="' + rel + '"]');
+  if (!l) { l = document.createElement("link"); l.rel = rel; document.head.appendChild(l); }
+  if (extra) Object.keys(extra).forEach(k => l.setAttribute(k, extra[k]));
+  l.href = href;
+}
+let iconSig = "";
+function applyIcon(L) {
+  const src = L.icon === "custom" ? iconSource() : "";
+  const design = L.icon === "custom" && !src ? "trg" : L.icon;
+  const sig = design + "|" + L.a + "|" + src.length + src.slice(-32);
+  if (sig === iconSig) return;
+  if (design === "custom" && iconImgSrc !== src) {
+    const im = new Image(); im.onload = () => { iconImg = im; iconImgSrc = src; iconSig = ""; applyIcon(L); }; im.src = src; return;
+  }
+  const go = () => {
+    iconSig = sig;
+    if (design === "trg" && L.a === "olive") { // the built-in files and manifest
+      setLink("apple-touch-icon", "icons/icon-180.png"); setLink("icon", "icons/icon-192.png", { type: "image/png" }); setLink("manifest", "manifest.webmanifest"); return;
+    }
+    const bg = ACC[L.a][1], png = (n, m) => drawIcon(design, n, m, bg).toDataURL("image/png");
+    setLink("apple-touch-icon", png(180, false)); setLink("icon", png(192, false), { type: "image/png" });
+    const base = new URL("./", location.href).href;
+    const man = { name: "TRG Selection Program", short_name: "TRG Program", id: base, start_url: base, scope: base, display: "standalone", orientation: "portrait",
+      background_color: "#eceee6", theme_color: bg, icons: [{ src: png(192, false), sizes: "192x192", type: "image/png" }, { src: png(512, false), sizes: "512x512", type: "image/png" },
+        { src: png(512, true), sizes: "512x512", type: "image/png", purpose: "maskable" }] };
+    setLink("manifest", "data:application/manifest+json;charset=utf-8," + encodeURIComponent(JSON.stringify(man)));
+  };
+  if (document.fonts && document.fonts.load) Promise.all([document.fonts.load("700 100px 'Barlow Condensed'"), document.fonts.load("600 40px 'Barlow Condensed'")]).then(go, go); else go();
+}
+function lookCard() {
+  const L = lookOf(S.look);
+  const set = (k, v) => { if (readOnly) return; S.look = Object.assign({}, L, { [k]: v }); queueSettings(); applyLook(S.look); render(); };
+  const box = h("div", { class: "card stack" }, h("h2", { text: "Look" }));
+  box.append(h("div", { class: "lookf" }, "Light or dark", h("div", { class: "seg" }, [["auto", "Match phone"], ["light", "Light"], ["dark", "Dark"]].map(([k, l]) =>
+    h("button", { type: "button", "aria-pressed": String(L.mode === k), onclick: () => set("mode", k) }, l)))));
+  const sw = (which) => h("div", { class: "swatches", role: "group", "aria-label": which === "a" ? "Phase A colour" : "Phase B colour" }, Object.keys(ACC).map(k =>
+    h("button", { type: "button", class: "sw", title: ACC[k][0], "aria-label": ACC[k][0], "aria-pressed": String(L[which] === k), style: "--swl:" + ACC[k][1] + ";--swd:" + ACC[k][2], onclick: () => set(which, k) })));
+  box.append(...[h("div", { class: "lookf" }, "Phase A colour: " + ACC[L.a][0], sw("a")), h("div", { class: "lookf" }, "Phase B colour: " + ACC[L.b][0], sw("b")),
+    h("p", { class: "small", text: "Phase A colour runs the header, buttons, ticks and charts; Phase B colour takes over on S1-S9 days. Defaults: olive and steel blue." }),
+    (L.mode !== "auto" || L.a !== "olive" || L.b !== "steel" || L.icon !== "trg") ? h("button", { class: "btn ghost", type: "button", onclick: () => { if (readOnly) return; S.look = Object.assign({}, DEFLOOK); queueSettings(); applyLook(S.look); render(); } }, "Back to the original look") : null].filter(Boolean));
+  if (!WEB) { box.append(h("p", { class: "small", text: "App icon: the Claude app sets this page's icon. The icon choice is in the web version on GitHub." })); return box; }
+  const bg = ACC[L.a][1], src = iconSource();
+  const opt = (k, lab, img) => h("button", { type: "button", class: "icopt", "aria-pressed": String(L.icon === k), onclick: () => set("icon", k) }, img, lab);
+  const grid = h("div", { class: "icons" }, ICONS.map(([k, lab]) => opt(k, lab, h("img", { alt: "", src: drawIcon(k, 120, false, bg).toDataURL("image/png") }))));
+  if (src) grid.append(opt("custom", "Your picture", h("img", { alt: "", src })));
+  const file = h("input", { type: "file", accept: "image/*", style: "display:none" });
+  file.addEventListener("change", () => {
+    const f = file.files && file.files[0]; if (!f) return;
+    const url = URL.createObjectURL(f), im = new Image();
+    im.onload = () => {
+      const c = document.createElement("canvas"); c.width = c.height = 512; const g = c.getContext("2d");
+      g.fillStyle = bg; g.fillRect(0, 0, 512, 512);
+      const s = Math.max(512 / im.naturalWidth, 512 / im.naturalHeight), w = im.naturalWidth * s, hh = im.naturalHeight * s;
+      g.drawImage(im, (512 - w) / 2, (512 - hh) / 2, w, hh); URL.revokeObjectURL(url);
+      try { localStorage.setItem(ICONK, c.toDataURL("image/jpeg", 0.9)); } catch (e) { ui.flash = "This browser is out of space for the picture. Try a smaller image."; render(); return; }
+      iconSig = ""; set("icon", "custom");
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); ui.flash = "That file didn't open as a picture."; render(); };
+    im.src = url;
+  });
+  grid.append(h("button", { type: "button", class: "icopt", onclick: () => file.click() }, h("span", { class: "icup", "aria-hidden": "true" }, "+"), src ? "New picture" : "Your picture"));
+  box.append(h("h3", { text: "App icon" }), grid, file,
+    h("p", { class: "small", text: "Icons take the Phase A colour. Your picture is cropped to a square and stays in this browser. The Home Screen keeps the icon it had when you added the app: to see a new one, remove the app from the Home Screen and add it again from this page (your log stays). Export a backup first anyway." }));
+  return box;
+}
+
+// first paint: last look used on this device, before settings load
+try { applyLook(JSON.parse(localStorage.getItem(LOOKK) || "null")); } catch (e) { applyLook(null); }
 
 /* ---------------- program edits (user's own changes to sessions and finishers) ---------------- */
 // EDITS docs: d_<day key> (this day only), t_<template>_D<n> (every time the session runs: its cycle + Holds), f_<finisher key> (that finisher everywhere)
@@ -953,10 +1107,47 @@ function rmEstimate(slot, pre, name, i1, i2, setIns, V) {
   show(false);
   return box;
 }
+// rows of exercise tables whose Load column names a weight or kit (kg, DB, KB, bar, belt, plate, vest, pack)
+const LOADED = /\d\s*kg|\bkg\b|\bDB\b|\bKB\b|\bbar\b|belt|plate|vest|pack/i;
+function loadedRows(html) {
+  const out = [];
+  edEls(frag(html), "rxt").forEach(t => {
+    const trs = $$("tr", t), hd = trs[0] ? Array.from(trs[0].children).map(c => cellText(c).toLowerCase()) : [], li = hd.indexOf("load");
+    if (li < 1) return;
+    trs.slice(1).forEach(tr => {
+      const td = tr.children; if (!td[0] || !td[li]) return;
+      const name = cellText(td[0]), load = cellText(td[li]);
+      if (name && LOADED.test(load) && !/^-/.test(load) && !out.some(r => r[0] === name)) out.push([name, load]);
+    });
+  });
+  return out;
+}
+function weightsBlock(slot, html, pre) {
+  const rows = loadedRows(html); if (!rows.length) return null;
+  const V = (LOGS[slot.key] && LOGS[slot.key].v) || {};
+  const box = h("div", { class: "wts" }, h("b", { class: "small", text: "Weights used (kg)" }));
+  rows.forEach(([n, load]) => {
+    const k = pre + "wt:" + n, i = h("input", { class: "in", value: V[k] == null ? "" : V[k], placeholder: "kg", inputmode: "decimal", autocomplete: "off", enterkeyhint: "done", "aria-label": nm(n) + " kg" });
+    i.addEventListener("input", () => setVal(slot, k, i.value));
+    box.append(h("label", { class: "wtr" }, h("span", null, nm(n), h("span", { class: "small", text: "Program: " + load })), i));
+  });
+  return box;
+}
+// every exercise with a logged weight or distance, for the Progress chart
+const wtOf = (x, n) => { const v = x.v || {}; return num(v["str:" + n + ":kg"]) || num(v["wt:" + n]) || num(v["fin:wt:" + n]); };
+function kgNames() {
+  const out = [];
+  logsSorted().forEach(x => Object.keys(x.v || {}).forEach(k => {
+    const m = /^str:(.+):(kg|cm)$/.exec(k) || /^(?:fin:)?wt:(.+)$/.exec(k);
+    if (m && num(x.v[k]) && !out.some(o => o.n === m[1])) out.push({ n: m[1], unit: m[2] === "cm" ? "cm" : "kg" });
+  }));
+  const order = liftsAll(); out.sort((a, b) => { const ia = order.indexOf(a.n), ib = order.indexOf(b.n); return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib); });
+  return out;
+}
 function liftsAll() {
   const out = LIFTS.slice();
   Object.keys(S.oneRM || {}).forEach(n => { if (out.indexOf(n) < 0) out.push(n); });
-  Object.values(LOGS).forEach(x => Object.keys((x && x.v) || {}).forEach(k => { const m = /^str:(.+):kg$/.exec(k); if (m && out.indexOf(m[1]) < 0 && num(x.v[k])) out.push(m[1]); }));
+  Object.values(LOGS).forEach(x => Object.keys((x && x.v) || {}).forEach(k => { const m = /^str:(.+):e1rm$/.exec(k); if (m && out.indexOf(m[1]) < 0 && num(x.v[k])) out.push(m[1]); }));
   return out;
 }
 function logE1rm(x, n) {
@@ -1036,7 +1227,7 @@ function tableEditor(t, label) {
         h("button", { type: "button", class: "mini-btn del", onclick: () => { t.rows.splice(i, 1); render(); } }, "Remove"))));
   });
   wrap.append(h("button", { class: "btn ghost", type: "button", onclick: () => { t.rows.push(t.head.map(() => ({ t: "", h: "", ot: null }))); render(); } }, "+ Add " + (t.kind === "st" ? "exercise" : "row")));
-  if (t.kind === "st") wrap.append(h("p", { class: "small", text: "Sets x reps like 3 x 10 sets the set boxes. A load like 65-75% or 80% gives the lift a 1RM and work-kg box; anything else (max, explosive) logs reps only." }));
+  if (t.kind === "st") wrap.append(h("p", { class: "small", text: "Sets x reps like 3 x 10 sets the set boxes. A load like 65-75% or 80% gives the lift a 1RM and work-kg box; any other load gets a weight box (a jump gets a distance box)." }));
   return wrap;
 }
 function editorCard(slot) {
@@ -1152,10 +1343,13 @@ function dayBlock(slot) {
   }
   el.append(h("details", { class: "rx", open: true }, h("summary", null, "Session"), rxb));
   // log
+  const wb = weightsBlock(slot, s.body, "");
+  if (wb && !s.log) el.append(h("div", { class: "card stack" }, h("h2", { text: "Log" }), wb));
   if (s.log) {
     const lg = h("div", { class: "log", html: s.log });
     $$(".lgnote", lg).forEach(n => n.remove());
     hydrate(lg, slot, "l");
+    if (wb) lg.prepend(wb);
     if (prog === "B") {
       const ti = h("input", { class: "in", inputmode: "text", value: V0["f:Treadmill"] || "", autocomplete: "off" });
       ti.addEventListener("input", () => setVal(slot, "f:Treadmill", ti.value));
@@ -1167,6 +1361,7 @@ function dayBlock(slot) {
     const f = s.fin, V = (doc && doc.v) || {};
     const fb = h("div", { class: "rxbody", html: f.body }); hydrate(fb, slot, "fb", "fin:"); applyNames(fb);
     const fl = h("div", { class: "log", html: f.log }); hydrate(fl, slot, "fl", "fin:");
+    const fw = weightsBlock(slot, f.body, "fin:"); if (fw) fl.prepend(fw);
     const fd = h("button", { class: "done", type: "button", "aria-pressed": String(!!V["fin:done"]) }, V["fin:done"] ? "✓ Finisher done" : "Mark finisher done");
     fd.addEventListener("click", () => { const on = fd.getAttribute("aria-pressed") !== "true"; fd.setAttribute("aria-pressed", String(on)); fd.textContent = on ? "✓ Finisher done" : "Mark finisher done"; setVal(slot, "fin:done", on); });
     el.append(h("details", { class: "rx fin", open: true }, h("summary", null, "Finisher · ~" + f.mins + " min"),
@@ -1502,18 +1697,23 @@ function viewProgress(v) {
   const rhr = logsSorted().filter(x => num(x.rhr)).map(x => ({ x: fmt(x.date, { weekday: undefined }), y: num(x.rhr), sub: x.iid ? x.iid + " D" + x.day : "" }));
   box.append(rhr.length ? lineChart(rhr, { title: "Morning RHR", sub: "bpm, from each day's log", ref: num(S.rhrBase), refLabel: "baseline " + S.rhrBase, int: true })
     : emptyChart("Morning RHR", "Enter your morning RHR on each day's log and the trend shows here."));
-  // strength
-  const withData = liftsAll().filter(n => logsSorted().some(x => x.v && num(x.v["str:" + n + ":kg"])));
-  if (withData.length) {
-    if (withData.indexOf(ui.lift) < 0) ui.lift = withData[0];
-    const est = ui.liftView === "e1rm", L = ui.lift;
-    const pts = logsSorted().filter(x => x.v && num(x.v["str:" + L + ":kg"])).map(x => ({ x: fmt(x.date, { weekday: undefined }), y: est ? logE1rm(x, L) : num(x.v["str:" + L + ":kg"]), sub: x.iid + " D" + x.day })).filter(pt => pt.y);
-    const seg = h("div", { class: "seg" }, withData.map(n => h("button", { type: "button", "aria-pressed": String(n === ui.lift), onclick: () => { ui.lift = n; render(); } }, nm(n))));
-    const vseg = h("div", { class: "seg" }, [["kg", "Work kg"], ["e1rm", "Est. 1RM"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String((ui.liftView || "kg") === k), onclick: () => { ui.liftView = k; render(); } }, l)));
-    const c = pts.length ? lineChart(pts, { title: "Strength: " + nm(L), sub: est ? "Estimated 1RM from the best set each session (SASR load table)" : "Work kg per session", yfmt: y => y + " kg", ref: est ? num(S.oneRM[L]) : null, refLabel: "saved " + S.oneRM[L] + " kg" })
-      : emptyChart("Strength: " + nm(L), "Log reps in the set boxes as well as the work kg and the estimate shows here.");
-    c.insertBefore(vseg, c.children[1]); c.insertBefore(seg, c.children[1]); box.append(c);
-  } else box.append(emptyChart("Strength", "Log work kg on a strength sheet and each lift gets a chart."));
+  // strength and weights: every exercise with a logged weight (or jump distance); Est. 1RM for the % lifts
+  const kn = kgNames();
+  if (kn.length) {
+    if (!kn.some(o => o.n === ui.lift)) ui.lift = kn[0].n;
+    const L = ui.lift, item = kn.find(o => o.n === L), rmOk = liftsAll().indexOf(L) >= 0 && item.unit === "kg", est = rmOk && ui.liftView === "e1rm";
+    const val = x => item.unit === "cm" ? num((x.v || {})["str:" + L + ":cm"]) : wtOf(x, L);
+    const pts = logsSorted().filter(x => x.v && val(x)).map(x => ({ x: fmt(x.date, { weekday: undefined }), y: est ? logE1rm(x, L) : val(x), sub: x.iid ? x.iid + " D" + x.day : "" })).filter(pt => pt.y);
+    let pick;
+    if (kn.length <= 5) pick = h("div", { class: "seg" }, kn.map(o => h("button", { type: "button", "aria-pressed": String(o.n === L), onclick: () => { ui.lift = o.n; render(); } }, nm(o.n))));
+    else { pick = h("select", { class: "in", "aria-label": "Exercise" }, kn.map(o => h("option", { value: o.n }, nm(o.n)))); pick.value = L; pick.addEventListener("change", () => { ui.lift = pick.value; render(); }); }
+    const vseg = rmOk ? h("div", { class: "seg" }, [["kg", "Work kg"], ["e1rm", "Est. 1RM"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String((ui.liftView || "kg") === k), onclick: () => { ui.liftView = k; render(); } }, l))) : null;
+    const unit = item.unit, title = (rmOk ? "Strength: " : "Weights: ") + nm(L);
+    const c = pts.length ? lineChart(pts, { title, sub: est ? "Estimated 1RM from the best set each session (SASR load table)" : unit === "cm" ? "Best distance per session" : rmOk ? "Work kg per session" : "Weight used per session", yfmt: y => y + " " + unit, ref: est ? num(S.oneRM[L]) : null, refLabel: "saved " + S.oneRM[L] + " kg" })
+      : emptyChart(title, "Log reps in the set boxes as well as the work kg and the estimate shows here.");
+    if (vseg) c.insertBefore(vseg, c.children[1]);
+    c.insertBefore(pick, c.children[1]); box.append(c);
+  } else box.append(emptyChart("Strength and weights", "Log work kg on a strength sheet, or a weight in any Weights used box, and each exercise gets a chart."));
   // SF body weight circuit
   const bwc = logsSorted().filter(x => /Body Weight Circuit/.test(x.title || "") && x.v && parseTime(x.v["f:Total time"])).map(x => ({ x: fmt(x.date, { weekday: undefined }), y: parseTime(x.v["f:Total time"]), sub: x.iid + " D" + x.day }));
   box.append(bwc.length ? lineChart(bwc, { title: "SF Body Weight Circuit", sub: "Total time, lower is better", yfmt: fmtMin })
@@ -1620,6 +1820,7 @@ function viewSetup(v) {
     h("label", { class: "f" }, "Back extension: no machine? Name the swap", bk),
     segOf("emc", [["A", "Program A"], ["B", "Program B"]], "SF machine circuit default (each session can switch)")));
   // 1RMs
+  box.append(lookCard());
   const rmList = h("div");
   liftsAll().forEach(n => {
     const pc = h("div", { class: "pc" }), srcl = h("div", { class: "pc src" });
@@ -1751,6 +1952,7 @@ async function doImport() {
 /* ---------------- render ---------------- */
 let rT = null, needRender = false;
 function render() {
+  applyLook(S.look);
   $$("nav.tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.tab === ui.tab ? "page" : "false"));
   const v = $("#view"); v.innerHTML = "";
   if (ui.tab === "today") viewDay(v); else if (ui.tab === "plan") viewPlan(v); else if (ui.tab === "progress") viewProgress(v); else viewSetup(v);
