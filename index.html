@@ -309,6 +309,16 @@ details.mv.on>summary{color:var(--ink)}
 .wts{display:grid;gap:8px;margin-bottom:12px}
 .wts .wtr{display:grid;grid-template-columns:1fr 104px;gap:10px;align-items:center}
 .wts .wtr .small{display:block}
+/* editor: log tables, fields, removals */
+.edsec{border-top:2px solid var(--line);padding-top:14px;margin-top:6px}
+.emeta{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ehead{gap:8px}
+.ecols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ecol{display:grid;grid-template-columns:1fr 36px;gap:6px;align-items:center}
+.ecol .in,.ecells .in,.erow .in{min-width:0;width:100%;box-sizing:border-box}
+.ecols{min-width:0}
+.erow > .ecol{grid-template-columns:1fr 40px}
+.erem{align-items:center;gap:10px;padding:8px 10px;border:1px dashed var(--line);border-radius:8px}
 </style>
 </head>
 <body>
@@ -939,8 +949,9 @@ const FIN_RULE_HTML = (() => { const f = Object.values(FINBANK)[0]; if (!f) retu
 const STD_HEAD = '<tr><th class="l">Exercise</th><th>Reps / dist</th><th>Load</th></tr>';
 function ticksHtml(n, lab) { n = Math.max(0, Math.min(20, parseInt(n, 10) || 0)); if (!n) return ""; let b = ""; for (let i = 1; i <= n; i++) b += "<span>" + i + "</span>"; return '<div class="ticks"><b>' + esc(lab || "Rounds") + "</b>" + b + "</div>"; }
 const paras = text => String(text || "").split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
-const paraHtml = x => '<p class="rx">' + esc(x).replace(/\bADAPT\b/g, '<span class="ad">ADAPT</span>').replace(/\n/g, "<br>") + "</p>";
-function parasHtml(text) { return paras(text).map(paraHtml).join(""); }
+const paraHtml = (x, cls) => '<p class="' + (cls || "rx") + '">' + esc(x).replace(/\bADAPT\b/g, '<span class="ad">ADAPT</span>').replace(/\n/g, "<br>") + "</p>";
+function parasHtml(text) { return paras(text).map(x => paraHtml(x)).join(""); }
+function notesText(html) { const r = patchHR(frag(html)); return $$("p.small", r).filter(p => !p.closest(".swap") && !/^Finisher:/.test(p.textContent.trim())).map(p => p.textContent.replace(/[ \t\r\n]+/g, " ").trim()).join("\n\n"); }
 function rxText(html) { const r = patchHR(frag(html)); return $$("p.rx", r).filter(p => !p.closest(".swap")).map(p => p.textContent.replace(/[ \t\r\n]+/g, " ").trim()).join("\n\n"); }
 function readTable(t, id, kind) {
   const trs = $$("tr", t), first = trs[0], hasHead = !!(first && first.querySelector("th"));
@@ -950,18 +961,20 @@ function readTable(t, id, kind) {
   const ncol = kind === "st" ? 4 : Math.max(head.length, ...body.map(r => r.children.length), 1);
   while (head.length < ncol) head.push("");
   const rows = body.map(tr => { const tds = Array.from(tr.children).slice(0, ncol); while (tds.length < ncol) tds.push(null); return tds.map(td => td ? { t: cellText(td), h: td.innerHTML, ot: cellText(td) } : { t: "", h: "", ot: null }); });
-  return { id, kind, cls: t.className, hh: hasHead ? first.outerHTML : "", head, firstL: !!(body[0] && body[0].children[0] && body[0].children[0].classList.contains("l")), rows };
+  return { id, kind, cls: t.className, hh: hasHead ? first.outerHTML : "", head, firstL: kind === "lg" || !!(body[0] && body[0].children[0] && body[0].children[0].classList.contains("l")), rows };
 }
-// editable tables: exercise lists in the session text, the strength sheet in the log (not the water-swap or fitness-test tables)
-const edEls = (root, kind) => kind === "st" ? $$("table.st", root).filter(t => !t.classList.contains("tst")) : $$("table.rxt", root).filter(t => !t.closest(".swap"));
-function edTables(body, log) {
-  const out = [];
-  edEls(frag(body), "rxt").forEach((t, i) => out.push(readTable(t, "b" + i, "rxt")));
-  edEls(frag(log), "st").forEach((t, i) => out.push(readTable(t, "l" + i, "st")));
-  return out;
+// editable parts. Tables: exercise lists in the session text (b), the strength sheet (l) and log tables (g) in the log; not the water-swap or fitness-test tables.
+// Groups: log fields and tick rows. Every edit is indexed against the program's own markup, so a removed part keeps its place and later edits line up.
+const edEls = (root, kind) => kind === "st" ? $$("table.st", root).filter(t => !t.classList.contains("tst")) : kind === "lg" ? $$("table.lg", root) : $$("table.rxt", root).filter(t => !t.closest(".swap"));
+const lgHead = head => "<tr>" + head.map((x, j) => "<th" + (j === 0 ? ' class="l"' : "") + ">" + esc(x) + "</th>").join("") + "</tr>";
+const liveRows = t => t.gone ? [] : t.rows.filter(r => r.some(c => (c.t || "").trim()));
+function serTable(t) {
+  const n = t.head.length;
+  return { kind: t.kind, cls: t.cls, hh: t.kind === "lg" ? lgHead(t.head.map(normT)) : t.hh, firstL: t.firstL,
+    rows: liveRows(t).map(r => { const x = (t.kind === "lg" ? r.slice(0, n) : r).map(c => (c.ot != null && c.t === c.ot) ? c.h : esc((c.t || "").trim())); while (t.kind === "lg" && x.length < n) x.push(""); return x; }) };
 }
-const serTable = t => ({ kind: t.kind, cls: t.cls, hh: t.hh, firstL: t.firstL, rows: t.rows.filter(r => r.some(c => (c.t || "").trim())).map(r => r.map(c => (c.ot != null && c.t === c.ot) ? c.h : esc((c.t || "").trim()))) });
-const tableSig = t => JSON.stringify(t.rows.filter(r => r.some(c => (c.t || "").trim())).map(r => r.map(c => (c.t || "").trim())));
+const tableSig = t => t.gone ? "gone" : JSON.stringify([t.kind === "lg" ? t.head.map(normT) : 0, liveRows(t).map(r => r.map(c => normT(c.t)))]);
+const tableFromSer = (te, id) => Object.assign(readTable(frag(buildTable(te)).firstElementChild, id, te.kind), { cls: te.cls });
 function buildTable(te) {
   if (te.kind === "st") {
     const rows = te.rows.map(r => {
@@ -973,25 +986,94 @@ function buildTable(te) {
   const rows = te.rows.map(r => "<tr>" + r.map((c, j) => "<td" + (j === 0 && te.firstL ? ' class="l"' : "") + ">" + c + "</td>").join("") + "</tr>").join("");
   return '<table class="' + te.cls + '">' + (te.hh || STD_HEAD) + rows + "</table>";
 }
-function patchHtml(html, prefix, kind, tables, text) {
+const keyIdx = (k, prefix) => k.indexOf(prefix) === 0 && /^\d+$/.test(k.slice(prefix.length)) ? +k.slice(prefix.length) : -1;
+function patchParas(root, html, cls, text) {
+  // paragraph by paragraph, so text between tables stays put and untouched paragraphs keep their formatting
+  const sel = "p." + cls, mine = r => $$(sel, r).filter(p => !p.closest(".swap") && !(cls === "small" && /^Finisher:/.test(p.textContent.trim())));
+  const ps = mine(root), np = paras(text), cur = mine(patchHR(frag(html))).map(p => normT(p.textContent));
+  const mk = x => frag(paraHtml(x, cls)).firstElementChild;
+  if (!ps.length) { if (cls === "rx") root.prepend(...np.map(mk)); else root.append(...np.map(mk)); return; }
+  np.forEach((x, i) => {
+    if (i < ps.length) { if (normT(x) !== cur[i]) ps[i].replaceWith(mk(x)); }
+    else { const last = mine(root).pop() || ps[ps.length - 1]; last.insertAdjacentElement("afterend", mk(x)); }
+  });
+  ps.slice(np.length).forEach(p => p.remove());
+}
+function patchHtml(html, prefix, kind, tables, text, notes) {
   const root = frag(html);
   if (tables) {
     const found = edEls(root, kind);
-    found.forEach((t, i) => { const te = tables[prefix + i]; if (te) t.replaceWith(frag(buildTable(te)).firstElementChild); });
-    Object.keys(tables).forEach(k => { if (k.indexOf(prefix) === 0 && +k.slice(prefix.length) >= found.length) root.append(frag(buildTable(tables[k])).firstElementChild); });
+    found.forEach((t, i) => { const te = tables[prefix + i]; if (!te) return; if (!te.rows.length) t.remove(); else t.replaceWith(frag(buildTable(te)).firstElementChild); });
+    Object.keys(tables).map(k => [keyIdx(k, prefix), k]).filter(x => x[0] >= found.length).sort((a, b) => a[0] - b[0])
+      .forEach(([, k]) => { if (tables[k].rows.length) root.append(frag(buildTable(tables[k])).firstElementChild); });
   }
-  if (text != null) {
-    // paragraph by paragraph, so text between tables stays put and untouched paragraphs keep their formatting
-    const ps = $$("p.rx", root).filter(p => !p.closest(".swap")), np = paras(text), cur = $$("p.rx", patchHR(frag(html))).filter(p => !p.closest(".swap")).map(p => normT(p.textContent));
-    const mk = x => frag(paraHtml(x)).firstElementChild;
-    if (!ps.length) { root.prepend(...np.map(mk)); return root.innerHTML; }
-    np.forEach((x, i) => {
-      if (i < ps.length) { if (normT(x) !== cur[i]) ps[i].replaceWith(mk(x)); }
-      else { const last = $$("p.rx", root).filter(p => !p.closest(".swap")).pop() || ps[ps.length - 1]; last.insertAdjacentElement("afterend", mk(x)); }
-    });
-    ps.slice(np.length).forEach(p => p.remove());
-  }
+  if (text != null) patchParas(root, html, "rx", text);
+  if (notes != null) patchParas(root, html, "small", notes);
   return root.innerHTML;
+}
+const fldsHtml = g => '<div class="flds ' + (g.cls || "c2") + '">' + g.labels.map(l => '<div class="fld"><span>' + esc(l) + "</span><i></i></div>").join("") + "</div>";
+const GSEL = { flds: ".flds", ticks: ".ticks" };
+function readGroups(html, kind) {
+  const root = frag(html);
+  return kind === "flds" ? $$(".flds", root).map(f => ({ cls: ["c1", "c2", "c4"].find(c => f.classList.contains(c)) || "c2", labels: $$(".fld > span", f).map(x => normT(x.textContent)) }))
+    : $$(".ticks", root).map(t => ({ label: normT(txt($("b", t))) || "Rounds", n: String($$("span", t).length) }));
+}
+const grpSer = (kind, g) => kind === "flds" ? { cls: g.cls || "c2", labels: g.gone ? [] : g.labels.map(normT).filter(Boolean) } : { label: normT(g.label) || "Rounds", n: g.gone ? 0 : Math.max(0, Math.min(20, parseInt(g.n, 10) || 0)) };
+const grpEmpty = (kind, g) => kind === "flds" ? !g.labels.length : !g.n;
+const grpSig = (kind, g) => { const x = grpSer(kind, g); return grpEmpty(kind, x) ? "gone" : JSON.stringify(x); };
+function patchGroups(html, x) {
+  if (!x || !Object.keys(x).some(k => x[k] && Object.keys(x[k]).length)) return html;
+  const root = frag(html);
+  ["flds", "ticks"].forEach(k => {
+    const m = x[k]; if (!m) return;
+    const mk = g => frag(k === "flds" ? fldsHtml(g) : ticksHtml(g.n, g.label)).firstElementChild;
+    const found = $$(GSEL[k], root);
+    found.forEach((el, i) => { const g = m[i]; if (!g) return; if (grpEmpty(k, g)) el.remove(); else el.replaceWith(mk(g)); });
+    Object.keys(m).map(Number).filter(i => i >= found.length).sort((a, b) => a - b).forEach(i => { if (!grpEmpty(k, m[i])) root.append(mk(m[i])); });
+  });
+  return root.innerHTML;
+}
+const mergeGroups = (into, x) => { if (x) ["flds", "ticks"].forEach(k => { if (x[k]) { into[k] = into[k] || {}; Object.assign(into[k], x[k]); } }); return into; };
+// editor model: the program's parts with any edits laid over them by index
+function overlayTables(list, tables) {
+  if (!tables) return;
+  Object.keys(tables).forEach(id => {
+    const te = tables[id], i = list.findIndex(t => t.id === id);
+    if (!te.rows.length) { if (i >= 0) list[i].gone = true; return; }
+    const nt = tableFromSer(te, id);
+    if (i >= 0) list[i] = nt; else list.push(nt);
+  });
+}
+function overlayGroups(gx, x) {
+  if (!x) return;
+  ["flds", "ticks"].forEach(k => {
+    if (!x[k]) return;
+    Object.keys(x[k]).map(Number).sort((a, b) => a - b).forEach(i => {
+      const g = x[k][i], list = gx[k];
+      while (list.length < i) list.push(Object.assign(k === "flds" ? { cls: "c2", labels: [] } : { label: "Rounds", n: "0" }, { gone: true }));
+      if (grpEmpty(k, g)) { if (list[i]) list[i].gone = true; return; }
+      list[i] = k === "flds" ? { cls: g.cls, labels: g.labels.slice() } : { label: g.label, n: String(g.n) };
+    });
+  });
+}
+function grpDiff(cur, base) {
+  const out = {};
+  ["flds", "ticks"].forEach(k => {
+    (cur[k] || []).forEach((g, i) => {
+      const b = base[k] && base[k][i], gs = grpSig(k, g);
+      if (b ? gs !== grpSig(k, b) : gs !== "gone") { out[k] = out[k] || {}; out[k][i] = grpSer(k, g); }
+    });
+  });
+  return Object.keys(out).length ? out : null;
+}
+function tabDiff(cur, base) {
+  const out = {};
+  cur.forEach(t => {
+    const b = base.find(x => x.id === t.id);
+    if (t.gone) { if (b && !b.gone) out[t.id] = serTable(Object.assign({}, t, { gone: true })); return; }
+    if (b ? (b.gone ? liveRows(t).length : tableSig(t) !== tableSig(b)) : liveRows(t).length) out[t.id] = serTable(t);
+  });
+  return Object.keys(out).length ? out : null;
 }
 function setRounds(log, n) {
   const root = frag(log), t = $(".ticks", root), lab = t ? txt($("b", t)) : "Rounds", nt = frag(ticksHtml(n, lab)).firstElementChild;
@@ -1003,14 +1085,27 @@ function editFin(f, e) {
   if (e.title != null) o.title = e.title;
   if (e.mins != null) o.mins = e.mins;
   if (e.text != null || e.tables) o.body = patchHtml(f.body, "fb", "rxt", e.tables, e.text);
-  if (e.rounds != null) o.log = setRounds(f.log, e.rounds);
+  let log = f.log;
+  if (e.rounds != null) log = setRounds(log, e.rounds); // edits saved before 16 Nov 2026
+  if (e.tables) log = patchHtml(log, "fg", "lg", e.tables);
+  if (e.logx) log = patchGroups(log, e.logx);
+  o.log = log;
   o.plan = o.title + " (~" + o.mins + " min)";
   return o;
 }
+function mergeFinEdits(a, b) {
+  if (!a) return b; if (!b) return a;
+  const o = Object.assign({}, a, b);
+  o.tables = Object.assign({}, a.tables || {}, b.tables || {});
+  o.logx = mergeGroups(mergeGroups({}, a.logx), b.logx);
+  return o;
+}
+const DEF_FIN_LOG = { ticks: [{ label: "Rounds", n: 4 }], flds: [{ cls: "c2", labels: ["Total time", "Notes"] }], lgs: [] };
 function customFin(c, kind) {
   const rows = (c.rows || []);
   const body = parasHtml(c.text) + (rows.length ? buildTable({ kind: "rxt", cls: "rxt c", hh: STD_HEAD, firstL: true, rows }) : "") + (kind === "str" ? FIN_RULE_HTML : "");
-  const log = ticksHtml(c.rounds, "Rounds") + '<div class="flds c2"><div class="fld"><span>Total time</span><i></i></div><div class="fld"><span>Notes</span><i></i></div></div>';
+  const L = c.log || { ticks: [{ label: "Rounds", n: c.rounds || 0 }], flds: DEF_FIN_LOG.flds, lgs: [] };
+  const log = (L.ticks || []).map(g => ticksHtml(g.n, g.label)).join("") + (L.lgs || []).filter(t => t.rows.length).map(buildTable).join("") + (L.flds || []).filter(g => g.labels.length).map(fldsHtml).join("");
   return { key: "custom", title: c.title || "My finisher", src: "Your finisher", mins: c.mins || "10", body, log, plan: (c.title || "My finisher") + " (~" + (c.mins || "10") + " min)" };
 }
 const finWithBank = ref => FINBANK[ref] ? (EDITS["f_" + ref] ? editFin(FINBANK[ref], EDITS["f_" + ref]) : FINBANK[ref]) : null;
@@ -1022,19 +1117,31 @@ function compile(base, docs) {
   let m = CMP.get(base); if (!m) { m = new Map(); CMP.set(base, m); }
   if (m.has(sig)) return m.get(sig);
   const s = Object.assign({}, base);
-  let title = null, text = null, fin = null; const tables = {};
-  docs.forEach(d => { if (d.title != null) title = d.title; if (d.text != null) text = d.text; if (d.tables) Object.assign(tables, d.tables); if (d.fin) fin = d.fin; });
+  let title = null, text = null, notes = null, fin = null; const tables = {}, logx = {}, bodyx = {}, meta = {};
+  docs.forEach(d => {
+    if (d.title != null) title = d.title; if (d.text != null) text = d.text; if (d.notes != null) notes = d.notes;
+    ["venue", "dress", "inten"].forEach(k => { if (d[k] != null) meta[k] = d[k]; });
+    if (d.tables) Object.assign(tables, d.tables); mergeGroups(logx, d.logx); mergeGroups(bodyx, d.bodyx); if (d.fin) fin = d.fin;
+  });
   if (title != null) s.title = esc(title);
+  Object.keys(meta).forEach(k => { s[k] = esc(meta[k]); });
   const tk = Object.keys(tables);
-  if (tk.length || text != null) s.body = patchHtml(base.body, "b", "rxt", tables, text);
-  if (tk.some(k => k.charAt(0) === "l")) {
-    s.log = patchHtml(base.log, "l", "st", tables, null);
+  if (tk.some(k => k.charAt(0) === "b") || text != null || notes != null) s.body = patchHtml(base.body, "b", "rxt", tables, text, notes);
+  if (Object.keys(bodyx).length) s.body = patchGroups(s.body, bodyx);
+  if (tk.some(k => k.charAt(0) === "l" || k.charAt(0) === "g") || Object.keys(logx).length) {
+    let log = base.log || "";
+    if (tk.some(k => k.charAt(0) === "l")) log = patchHtml(log, "l", "st", tables);
+    if (tk.some(k => k.charAt(0) === "g")) log = patchHtml(log, "g", "lg", tables);
+    s.log = patchGroups(log, logx);
     const te = tables.l0;
-    if (te && base.kind === "str") { const rows = te.rows.map(r => r.map(plain)), main = rows.filter(r => /%/.test(r[2] || "")); if (main.length) s.plan = esc(main[0][1] + " at " + main[0][2] + ": " + main.slice(0, 2).map(r => r[0]).join(", ")); }
+    if (te && te.rows.length && base.kind === "str") { const rows = te.rows.map(r => r.map(plain)), main = rows.filter(r => /%/.test(r[2] || "")); if (main.length) s.plan = esc(main[0][1] + " at " + main[0][2] + ": " + main.slice(0, 2).map(r => r[0]).join(", ")); }
   }
   let f = fin ? (fin.mode === "none" ? null : fin.mode === "custom" ? customFin(fin.custom || {}, base.kind) : (FINBANK[fin.ref] || null)) : (base.fin || null);
-  if (f && f.key !== "custom" && EDITS["f_" + f.key]) { f = editFin(f, EDITS["f_" + f.key]); s.finEdited = true; }
-  if (f && fin && fin.mode === "bank" && fin.edit) f = editFin(f, fin.edit);
+  if (f && f.key !== "custom") {
+    const bankE = EDITS["f_" + f.key], sessE = fin && fin.mode === "bank" ? fin.edit : null;
+    if (bankE) s.finEdited = true;
+    if (bankE || sessE) f = editFin(f, mergeFinEdits(bankE, sessE)); // one pass over the program finisher, so indices line up
+  }
   if (f) s.fin = f; else delete s.fin;
   s.edits = docs.map(d => d.id.charAt(0));
   m.set(sig, s);
@@ -1158,53 +1265,88 @@ function logE1rm(x, n) {
 }
 
 /* ---------------- session editor ---------------- */
-function finDraft(f) {
-  if (!f) return { mode: "none" };
-  const t = $("table.rxt", frag(f.body)), tk = $(".ticks", frag(f.log));
-  return { mode: f.key === "custom" ? "custom" : "bank", ref: f.key, title: f.title, mins: String(f.mins), text: rxText(f.body),
-    table: t ? readTable(t, "fb0", "rxt") : { id: "fb0", kind: "rxt", cls: "rxt c", hh: STD_HEAD, head: ["Exercise", "Reps / dist", "Load"], firstL: true, rows: [] },
-    rounds: tk ? String($$("span", tk).length) : (f.key === "custom" ? "0" : null), everywhere: false };
-}
-function draftFrom(s) { return { title: plain(s.title), text: rxText(s.body), tables: edTables(s.body, s.log), fin: finDraft(s.fin) }; }
-function tplDocsFor(slot) { const tid = tplDocId(slot); return tid && EDITS[tid] ? [EDITS[tid]] : []; }
-function srcFor(slot, scope) { const base = slot.base || slot.s; return scope === "tpl" ? compile(base, tplDocsFor(slot)) : slot.s; }
-function baselineFor(slot, scope) { const base = slot.base || slot.s; return scope === "tpl" ? compile(base, []) : compile(base, tplDocsFor(slot)); }
 const normT = v => String(v || "").replace(/\s+/g, " ").trim();
-function finDiff(fd, ref) {
-  const b = finDraft(ref), e = {};
-  if (normT(fd.title) !== normT(b.title)) e.title = fd.title.trim();
-  if (normT(fd.mins) !== normT(b.mins)) e.mins = fd.mins.trim();
-  if (normT(fd.text) !== normT(b.text)) e.text = fd.text;
-  if (tableSig(fd.table) !== tableSig(b.table)) e.tables = { fb0: serTable(fd.table) };
-  if (fd.rounds != null && String(parseInt(fd.rounds, 10) || 0) !== String(parseInt(b.rounds, 10) || 0)) e.rounds = parseInt(fd.rounds, 10) || 0;
+const textSig = x => paras(x).map(normT).join("\n");
+const cell = () => ({ t: "", h: "", ot: null });
+const blankTable = (id, kind) => kind === "lg" ? { id, kind: "lg", cls: "lg", hh: "", head: ["Item", "Result"], firstL: true, rows: [[cell(), cell()]] }
+  : { id, kind: "rxt", cls: "rxt c", hh: STD_HEAD, head: ["Exercise", "Reps / dist", "Load"], firstL: true, rows: [[cell(), cell(), cell()]] };
+function edTables(body, log) {
+  const out = [];
+  edEls(frag(body), "rxt").forEach((t, i) => out.push(readTable(t, "b" + i, "rxt")));
+  edEls(frag(log), "st").forEach((t, i) => out.push(readTable(t, "l" + i, "st")));
+  edEls(frag(log), "lg").forEach((t, i) => out.push(readTable(t, "g" + i, "lg")));
+  return out;
+}
+// finisher model: the program finisher (or yours) with edits laid over it by index
+function finModel(f) {
+  const t = $("table.rxt", frag(f.body));
+  return { title: f.title, mins: String(f.mins), text: rxText(f.body), table: t ? readTable(t, "fb0", "rxt") : Object.assign(blankTable("fb0", "rxt"), { rows: [] }),
+    lgs: edEls(frag(f.log), "lg").map((x, i) => readTable(x, "fg" + i, "lg")), logx: { flds: readGroups(f.log, "flds"), ticks: readGroups(f.log, "ticks") } };
+}
+function overlayFin(m, e) {
+  if (!e) return m;
+  if (e.title != null) m.title = e.title;
+  if (e.mins != null) m.mins = String(e.mins);
+  if (e.text != null) m.text = paras(e.text).join("\n\n");
+  if (e.tables) { const l = [m.table].concat(m.lgs); overlayTables(l, e.tables); m.table = l.find(t => t.id === "fb0") || m.table; m.lgs = l.filter(t => t.kind === "lg"); }
+  if (e.rounds != null) { const n = parseInt(e.rounds, 10) || 0; if (m.logx.ticks[0]) { m.logx.ticks[0].n = String(n); m.logx.ticks[0].gone = !n; } else if (n) m.logx.ticks.push({ label: "Rounds", n: String(n) }); }
+  overlayGroups(m.logx, e.logx);
+  return m;
+}
+const bankModel = ref => overlayFin(finModel(FINBANK[ref]), EDITS["f_" + ref]);
+function finDraftFrom(spec, baseFin) {
+  if (spec ? spec.mode === "none" : !baseFin) return { mode: "none" };
+  if (spec && spec.mode === "custom") return Object.assign(finModel(customFin(spec.custom || {}, "")), { mode: "custom", ref: "custom", everywhere: false });
+  const ref = spec ? spec.ref : baseFin.key;
+  if (!FINBANK[ref]) return { mode: "none" };
+  return Object.assign(overlayFin(bankModel(ref), spec && spec.edit), { mode: "bank", ref, everywhere: false });
+}
+function finEditDiff(fd, bm) {
+  const e = {};
+  if (normT(fd.title) !== normT(bm.title)) e.title = fd.title.trim();
+  if (normT(fd.mins) !== normT(bm.mins)) e.mins = fd.mins.trim();
+  if (textSig(fd.text) !== textSig(bm.text)) e.text = fd.text;
+  const tb = tabDiff([fd.table].concat(fd.lgs), [bm.table].concat(bm.lgs)); if (tb) e.tables = tb;
+  const gx = grpDiff(fd.logx, bm.logx); if (gx) e.logx = gx;
   return e;
 }
 function finSpec(fd) {
   if (fd.mode === "none") return { mode: "none" };
-  if (fd.mode === "custom") return { mode: "custom", custom: { title: fd.title.trim() || "My finisher", mins: fd.mins.trim() || "10", text: fd.text, rows: serTable(fd.table).rows, rounds: parseInt(fd.rounds, 10) || 0 } };
-  const e = finDiff(fd, finWithBank(fd.ref));
+  if (fd.mode === "custom") return { mode: "custom", custom: { title: fd.title.trim() || "My finisher", mins: fd.mins.trim() || "10", text: fd.text, rows: serTable(fd.table).rows,
+    log: { ticks: fd.logx.ticks.map(g => grpSer("ticks", g)).filter(g => g.n), flds: fd.logx.flds.map(g => grpSer("flds", g)).filter(g => g.labels.length), lgs: fd.lgs.map(serTable).filter(t => t.rows.length) } } };
+  const e = finEditDiff(fd, bankModel(fd.ref));
   return Object.keys(e).length ? { mode: "bank", ref: fd.ref, edit: e } : { mode: "bank", ref: fd.ref };
+}
+// session model for one edit scope: the program plus the edits below it (own = include this scope's saved edit)
+function scopeDocs(slot, scope, own) { const tid = tplDocId(slot), t = tid ? EDITS[tid] : null, dd = EDITS["d_" + slot.key]; return (scope === "tpl" ? [own ? t : null] : [t, own ? dd : null]).filter(Boolean); }
+function draftFor(slot, scope, own) {
+  const base = slot.base || slot.s, docs = scopeDocs(slot, scope, own), s = compile(base, docs);
+  const m = { tables: edTables(base.body, base.log), logx: { flds: readGroups(base.log, "flds"), ticks: readGroups(base.log, "ticks") }, bodyx: { flds: [], ticks: readGroups(base.body, "ticks") } };
+  docs.forEach(d => { overlayTables(m.tables, d.tables); overlayGroups(m.logx, d.logx); overlayGroups(m.bodyx, d.bodyx); });
+  const spec = docs.reduce((r, d) => d.fin || r, null);
+  return Object.assign(m, { title: plain(s.title), venue: plain(s.venue || ""), dress: plain(s.dress || ""), inten: plain(s.inten || ""), text: rxText(s.body), notes: notesText(s.body), fin: finDraftFrom(spec, base.fin) });
 }
 function openEditor(slot, scope, toFin) {
   if (readOnly) return;
   scope = scope || "day";
-  ui.edit = { key: slot.key, scope, draft: draftFrom(srcFor(slot, scope)), toFin: !!toFin };
+  ui.edit = { key: slot.key, scope, draft: draftFor(slot, scope, true), toFin: !!toFin };
   render();
   setTimeout(() => { const el = $(toFin ? "#edFin" : "#edTop"); if (el) el.scrollIntoView({ block: "start" }); }, 30);
 }
 function saveEdit(slot) {
-  const e = ui.edit, d = e.draft, scope = e.scope;
-  const bd = draftFrom(baselineFor(slot, scope)), doc = {};
+  const e = ui.edit, d = e.draft, scope = e.scope, bd = draftFor(slot, scope, false), doc = {};
   if (normT(d.title) && normT(d.title) !== normT(bd.title)) doc.title = d.title.trim();
-  if (normT(d.text) !== normT(bd.text)) doc.text = d.text;
-  const tabs = {};
-  d.tables.forEach(t => { const bt = bd.tables.find(x => x.id === t.id); if (bt ? tableSig(t) !== tableSig(bt) : t.rows.some(r => r.some(c => (c.t || "").trim()))) tabs[t.id] = serTable(t); });
-  if (Object.keys(tabs).length) doc.tables = tabs;
+  ["venue", "dress", "inten"].forEach(k => { if (normT(d[k]) !== normT(bd[k])) doc[k] = normT(d[k]); });
+  if (textSig(d.text) !== textSig(bd.text)) doc.text = d.text;
+  if (textSig(d.notes) !== textSig(bd.notes)) doc.notes = d.notes;
+  const tb = tabDiff(d.tables, bd.tables); if (tb) doc.tables = tb;
+  const lx = grpDiff(d.logx, bd.logx); if (lx) doc.logx = lx;
+  const bx = grpDiff(d.bodyx, bd.bodyx); if (bx) doc.bodyx = bx;
   let msg = "Saved.";
   const fs = finSpec(d.fin), bs = finSpec(bd.fin);
   if (JSON.stringify(fs) !== JSON.stringify(bs)) {
     if (d.fin.mode === "bank" && d.fin.everywhere && bd.fin.mode === "bank" && d.fin.ref === bd.fin.ref) {
-      const bank = finDiff(d.fin, FINBANK[d.fin.ref]);
+      const bank = finEditDiff(d.fin, finModel(FINBANK[d.fin.ref]));
       if (Object.keys(bank).length) putEdit("f_" + d.fin.ref, bank); else removeEdit("f_" + d.fin.ref);
       msg = "Saved. The finisher change applies everywhere " + d.fin.title + " appears.";
     } else doc.fin = fs;
@@ -1214,21 +1356,71 @@ function saveEdit(slot) {
   ui.edit = null; ui.flash = Object.keys(doc).length || msg !== "Saved." ? (scope === "tpl" && Object.keys(doc).length ? "Saved for every time this session runs." : msg) : "No changes from the program, so nothing was saved.";
   render(); window.scrollTo(0, 0);
 }
-function tableEditor(t, label) {
+const removedRow = (what, undo) => h("div", { class: "row erem" }, h("span", { class: "small", text: what + " removed. Saving takes it off this session." }), h("button", { type: "button", class: "mini-btn", onclick: undo }, "Undo"));
+function headEditor(t) {
+  const row = h("div", { class: "ecols" });
+  t.head.forEach((c, j) => {
+    const x = h("input", { class: "in", value: c, autocomplete: "off", placeholder: j ? "Column name" : "Row heading", "aria-label": j ? "Column " + (j + 1) + " name" : "Row heading" });
+    x.addEventListener("input", () => { t.head[j] = x.value; });
+    row.append(h("div", { class: "ecol" }, x, j > 0 && t.head.length > 2 ? h("button", { type: "button", class: "mini-btn del", "aria-label": "Remove column " + (j + 1), onclick: () => { t.head.splice(j, 1); t.rows.forEach(r => r.splice(j, 1)); render(); } }, "×") : h("span")));
+  });
+  return h("div", { class: "stack ehead" }, h("span", { class: "small", text: "Columns. The first one heads the row names. In the rows, a blank cell becomes a box to fill in, a filled cell shows as fixed text (a target time, say), and a column called Pass? or Made it becomes a tick button." }),
+    row, h("button", { type: "button", class: "mini-btn", onclick: () => { t.head.push(""); t.rows.forEach(r => r.push(cell())); render(); } }, "+ Column"));
+}
+function tableEditor(t, label, removable) {
   const wrap = h("div", { class: "stack etab" }, h("h3", { text: label }));
+  if (t.gone) { wrap.append(removedRow(label, () => { t.gone = false; if (!t.rows.length) t.rows.push(t.head.map(cell)); render(); })); return wrap; }
+  if (t.kind === "lg") wrap.append(headEditor(t));
   const ncol = t.head.length;
   t.rows.forEach((r, i) => {
-    while (r.length < ncol) r.push({ t: "", h: "", ot: null });
-    const mk = (c, j) => { const x = h("input", { class: "in", value: c.t, placeholder: t.head[j] || "", autocomplete: "off", "aria-label": (t.head[j] || "Cell") + ", row " + (i + 1) }); x.addEventListener("input", () => { c.t = x.value; }); return x; };
-    const rest = h("div", { class: "ecells" }, r.slice(1).map((c, j) => h("label", { class: "f" }, t.head[j + 1] || "", mk(c, j + 1))));
+    while (r.length < ncol) r.push(cell());
+    const mk = (c, j) => { const x = h("input", { class: "in", value: c.t, placeholder: t.kind === "lg" && j ? "blank = box" : (t.head[j] || ""), autocomplete: "off", "aria-label": (t.head[j] || "Cell") + ", row " + (i + 1) }); x.addEventListener("input", () => { c.t = x.value; }); return x; };
+    const rest = h("div", { class: "ecells" }, r.slice(1, ncol).map((c, j) => h("label", { class: "f" }, t.head[j + 1] || "", mk(c, j + 1))));
     const mv = (dlt) => { const k = i + dlt; if (k < 0 || k >= t.rows.length) return; const x = t.rows[i]; t.rows[i] = t.rows[k]; t.rows[k] = x; render(); };
     wrap.append(h("div", { class: "erow" }, h("label", { class: "f" }, (t.head[0] || "Item") + " " + (i + 1), mk(r[0], 0)), ncol > 1 ? rest : null,
       h("div", { class: "ectl" }, h("button", { type: "button", class: "mini-btn", "aria-label": "Move up", onclick: () => mv(-1) }, "↑"), h("button", { type: "button", class: "mini-btn", "aria-label": "Move down", onclick: () => mv(1) }, "↓"),
         h("button", { type: "button", class: "mini-btn del", onclick: () => { t.rows.splice(i, 1); render(); } }, "Remove"))));
   });
-  wrap.append(h("button", { class: "btn ghost", type: "button", onclick: () => { t.rows.push(t.head.map(() => ({ t: "", h: "", ot: null }))); render(); } }, "+ Add " + (t.kind === "st" ? "exercise" : "row")));
+  wrap.append(h("button", { class: "btn ghost", type: "button", onclick: () => { t.rows.push(t.head.map(cell)); render(); } }, "+ Add " + (t.kind === "st" ? "exercise" : "row")));
   if (t.kind === "st") wrap.append(h("p", { class: "small", text: "Sets x reps like 3 x 10 sets the set boxes. A load like 65-75% or 80% gives the lift a 1RM and work-kg box; any other load gets a weight box (a jump gets a distance box)." }));
+  if (removable) wrap.append(h("button", { class: "btn ghost", type: "button", onclick: () => { t.gone = true; render(); } }, "Remove this table"));
   return wrap;
+}
+function ticksEditor(list, title, canAdd) {
+  const box = h("div", { class: "stack etab" }, h("h3", { text: title }));
+  list.forEach(g => {
+    if (g.gone) { box.append(removedRow(g.label || "Tick row", () => { g.gone = false; if (!(parseInt(g.n, 10) > 0)) g.n = "4"; render(); })); return; }
+    const l = h("input", { class: "in", value: g.label, autocomplete: "off" }); l.addEventListener("input", () => { g.label = l.value; });
+    const n = h("input", { class: "in", value: g.n, inputmode: "numeric", autocomplete: "off" }); n.addEventListener("input", () => { g.n = n.value; });
+    box.append(h("div", { class: "erow" }, h("div", { class: "ecells" }, h("label", { class: "f" }, "Label", l), h("label", { class: "f" }, "Boxes (1-20)", n)),
+      h("div", { class: "ectl" }, h("button", { type: "button", class: "mini-btn del", onclick: () => { g.gone = true; render(); } }, "Remove"))));
+  });
+  if (canAdd) box.append(h("button", { class: "btn ghost", type: "button", onclick: () => { list.push({ label: "Rounds", n: "4" }); render(); } }, "+ Add a tick row"));
+  return box;
+}
+function fldsEditor(list) {
+  const box = h("div", { class: "stack etab" }, h("h3", { text: "Log fields" }));
+  list.forEach((g, gi) => {
+    if (g.gone) { box.append(removedRow("Field group " + (gi + 1), () => { g.gone = false; if (!g.labels.length) g.labels.push(""); render(); })); return; }
+    const grp = h("div", { class: "erow" });
+    g.labels.forEach((lab, j) => {
+      const x = h("input", { class: "in", value: lab, autocomplete: "off", placeholder: "Field name", "aria-label": "Field " + (j + 1) });
+      x.addEventListener("input", () => { g.labels[j] = x.value; });
+      grp.append(h("div", { class: "ecol" }, x, h("button", { type: "button", class: "mini-btn del", "aria-label": "Remove field " + (j + 1), onclick: () => { g.labels.splice(j, 1); render(); } }, "×")));
+    });
+    grp.append(h("div", { class: "ectl" }, h("button", { type: "button", class: "mini-btn", onclick: () => { g.labels.push(""); render(); } }, "+ Field"),
+      h("button", { type: "button", class: "mini-btn del", onclick: () => { g.gone = true; render(); } }, "Remove group")));
+    box.append(grp);
+  });
+  box.append(h("button", { class: "btn ghost", type: "button", onclick: () => { list.push({ cls: "c2", labels: ["", ""] }); render(); } }, "+ Add log fields"));
+  return box;
+}
+function logEditor(tables, logx, prefix, addTable) {
+  const out = [];
+  tables.forEach((t, i) => out.push(tableEditor(t, "Log table " + (i + 1) + (t.head[0] && !t.gone ? ": " + t.head.filter(Boolean).slice(0, 3).join(", ") : ""), true)));
+  out.push(h("button", { class: "btn ghost", type: "button", onclick: () => { addTable(blankTable(prefix + tables.length, "lg")); render(); } }, "+ Add a log table"));
+  out.push(fldsEditor(logx.flds), ticksEditor(logx.ticks, "Tick rows", true));
+  return out;
 }
 function editorCard(slot) {
   const e = ui.edit, d = e.draft;
@@ -1236,25 +1428,34 @@ function editorCard(slot) {
   const box = h("div", { class: "card stack editor", id: "edTop" }, h("h2", { text: "Edit session" }));
   if (canTpl) {
     const runs = SCHED.seq.filter(x => x.tpl === slot.inst.tpl && x.iid !== slot.inst.tpl).map(x => x.iid);
-    box.append(h("div", { class: "seg" }, [["day", "This day only"], ["tpl", "Every time it runs"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String(e.scope === k), onclick: () => { if (e.scope === k) return; e.scope = k; e.draft = draftFrom(srcFor(slot, k)); render(); } }, l))),
+    box.append(h("div", { class: "seg" }, [["day", "This day only"], ["tpl", "Every time it runs"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String(e.scope === k), onclick: () => { if (e.scope === k) return; e.scope = k; e.draft = draftFor(slot, k, true); render(); } }, l))),
       h("p", { class: "small", text: e.scope === "tpl" ? "Applies to " + slot.inst.tpl + " D" + (slot.t + 1) + (runs.length ? " and the Hold" + (runs.length > 1 ? "s" : "") + " that repeat" + (runs.length > 1 ? "" : "s") + " it (" + runs.join(", ") + ")" : "") + ". A day with its own edits keeps them." : "Applies to " + (slot.date ? fmt(slot.date) : slot.inst.iid + " D" + (slot.d + 1)) + " only." }));
   } else box.append(h("p", { class: "small", text: "Applies to this day only." }));
-  const ti = h("input", { class: "in", value: d.title, autocomplete: "off" }); ti.addEventListener("input", () => { d.title = ti.value; });
-  const tx = h("textarea", { class: "in", rows: "7" }); tx.value = d.text; tx.addEventListener("input", () => { d.text = tx.value; });
-  box.append(h("label", { class: "f" }, "Title", ti), h("label", { class: "f" }, "Instructions", tx, h("span", { class: "small", text: "Blank line = new paragraph. Tables, tick boxes and log fields stay as they are." })));
-  d.tables.forEach(t => box.append(tableEditor(t, t.kind === "st" ? "Exercises (sets, reps, load, rest)" : (t.head[0] && t.head[0] !== "Exercise" ? t.head[0] : "Exercise list"))));
-  const s = slot.s;
-  if (!d.tables.some(t => t.id.charAt(0) === "b") && s.kind !== "str") box.append(h("button", { class: "btn ghost", type: "button", onclick: () => { d.tables.push({ id: "b0", kind: "rxt", cls: "rxt c", hh: STD_HEAD, head: ["Exercise", "Reps / dist", "Load"], firstL: true, rows: [[{ t: "", h: "", ot: null }, { t: "", h: "", ot: null }, { t: "", h: "", ot: null }]] }); render(); } }, "+ Add an exercise list"));
+  const inp1 = (k, ph) => { const x = h("input", { class: "in", value: d[k], placeholder: ph || "", autocomplete: "off" }); x.addEventListener("input", () => { d[k] = x.value; }); return x; };
+  const area = (k, rows) => { const x = h("textarea", { class: "in", rows: String(rows) }); x.value = d[k]; x.addEventListener("input", () => { d[k] = x.value; }); return x; };
+  box.append(h("label", { class: "f" }, "Title", inp1("title")),
+    h("div", { class: "flds emeta" }, h("label", { class: "f" }, "Where", inp1("venue", "Home gym, pool")), h("label", { class: "f" }, "Kit", inp1("dress", "PT kit")), h("label", { class: "f" }, "Effort", inp1("inten", "RPE 6-7"))),
+    h("label", { class: "f" }, "Instructions", area("text", 7), h("span", { class: "small", text: "Blank line = new paragraph." })),
+    h("label", { class: "f" }, "Notes and cautions", area("notes", 3), h("span", { class: "small", text: "The small print under the session: spotters, safety, swaps. Blank line = new paragraph." })));
+  const bT = d.tables.filter(t => t.id.charAt(0) === "b"), lT = d.tables.filter(t => t.id.charAt(0) === "l"), gT = d.tables.filter(t => t.id.charAt(0) === "g");
+  bT.forEach(t => box.append(tableEditor(t, t.head[0] && t.head[0] !== "Exercise" ? t.head[0] : "Exercise list", true)));
+  box.append(h("button", { class: "btn ghost", type: "button", onclick: () => { d.tables.push(blankTable("b" + bT.length, "rxt")); render(); } }, "+ Add an exercise list"));
+  if (d.bodyx.ticks.length) box.append(ticksEditor(d.bodyx.ticks, "Tick rows in the session", false));
+  lT.forEach(t => box.append(tableEditor(t, "Exercises (sets, reps, load, rest)", false)));
+  box.append(h("h2", { class: "edsec", text: "Log" }), h("p", { class: "small", text: "What you fill in on the day: log tables, fields and tick rows." }),
+    ...logEditor(gT, d.logx, "g", t => d.tables.push(t)));
   // finisher
-  const fd = d.fin, fb = h("div", { class: "stack efin", id: "edFin" }, h("h3", { text: "Finisher" }));
+  const fd = d.fin, fb = h("div", { class: "stack efin", id: "edFin" }, h("h2", { class: "edsec", text: "Finisher" }));
   const sel = h("select", { class: "in", "aria-label": "Finisher" });
   sel.append(h("option", { value: "none" }, "No finisher"));
   Object.keys(FINBANK).forEach(k => sel.append(h("option", { value: k }, FINBANK[k].title + " (" + FINBANK[k].src.split(",")[0] + ")")));
   sel.append(h("option", { value: "custom" }, "Write my own"));
   sel.value = fd.mode === "bank" ? fd.ref : fd.mode;
   sel.addEventListener("change", () => {
-    const v = sel.value;
-    d.fin = v === "none" ? { mode: "none" } : v === "custom" ? Object.assign(finDraft(null), { mode: "custom", ref: "custom", title: fd.mode !== "none" ? fd.title : "My finisher", mins: fd.mode !== "none" ? fd.mins : "10", text: fd.mode !== "none" ? fd.text : "", table: fd.mode !== "none" ? fd.table : finDraft({ key: "custom", body: "", log: "" }).table, rounds: fd.rounds || "4", everywhere: false }) : finDraft(finWithBank(v));
+    const v = sel.value, keep = fd.mode !== "none";
+    d.fin = v === "none" ? { mode: "none" } : v === "custom" ? { mode: "custom", ref: "custom", everywhere: false, title: keep ? fd.title : "My finisher", mins: keep ? fd.mins : "10", text: keep ? fd.text : "",
+      table: keep ? fd.table : Object.assign(blankTable("fb0", "rxt"), { rows: [] }), lgs: keep ? fd.lgs : [],
+      logx: keep ? fd.logx : { ticks: [{ label: "Rounds", n: "4" }], flds: [{ cls: "c2", labels: ["Total time", "Notes"] }] } } : finDraftFrom({ mode: "bank", ref: v }, null);
     render(); setTimeout(() => { const el = $("#edFin"); if (el) el.scrollIntoView({ block: "start" }); }, 30);
   });
   fb.append(sel);
@@ -1263,13 +1464,13 @@ function editorCard(slot) {
     const fm = h("input", { class: "in", value: fd.mins, inputmode: "text", autocomplete: "off" }); fm.addEventListener("input", () => { fd.mins = fm.value; });
     const fx = h("textarea", { class: "in", rows: "5" }); fx.value = fd.text; fx.addEventListener("input", () => { fd.text = fx.value; });
     fb.append(h("div", { class: "flds" }, h("label", { class: "f" }, "Finisher title", ft), h("label", { class: "f" }, "Minutes", fm)), h("label", { class: "f" }, "Finisher instructions", fx));
-    fb.append(tableEditor(fd.table, "Finisher exercises"));
-    if (fd.rounds != null) { const fr = h("input", { class: "in", value: fd.rounds, inputmode: "numeric", autocomplete: "off" }); fr.addEventListener("input", () => { fd.rounds = fr.value; }); fb.append(h("label", { class: "f" }, "Rounds to tick off (0 = none)", fr)); }
+    fb.append(tableEditor(fd.table, "Finisher exercises", false));
+    fb.append(h("h3", { text: "Finisher log" }), ...logEditor(fd.lgs, fd.logx, "fg", t => fd.lgs.push(t)));
     if (fd.mode === "bank") {
       const cb = h("button", { type: "button", class: "tog", "aria-pressed": String(!!fd.everywhere), style: "padding:0 12px" }, fd.everywhere ? "✓ Change it everywhere it appears" : "Change it everywhere it appears");
       cb.addEventListener("click", () => { fd.everywhere = !fd.everywhere; cb.setAttribute("aria-pressed", String(fd.everywhere)); cb.textContent = (fd.everywhere ? "✓ " : "") + "Change it everywhere it appears"; });
       fb.append(cb, h("p", { class: "small", text: "Off: the finisher change follows the choice at the top. On: every day that uses " + fd.title + " gets the change." }));
-      if (EDITS["f_" + fd.ref]) fb.append(h("button", { class: "btn ghost", type: "button", onclick: () => { removeEdit("f_" + fd.ref); d.fin = finDraft(finWithBank(fd.ref)); render(); } }, "Put " + FINBANK[fd.ref].title + " back to the program everywhere"));
+      if (EDITS["f_" + fd.ref]) fb.append(h("button", { class: "btn ghost", type: "button", onclick: () => { removeEdit("f_" + fd.ref); d.fin = finDraftFrom({ mode: "bank", ref: fd.ref }, null); render(); } }, "Put " + FINBANK[fd.ref].title + " back to the program everywhere"));
     }
   }
   box.append(fb);
@@ -1277,7 +1478,7 @@ function editorCard(slot) {
   box.append(...[h("div", { class: "row" }, h("button", { class: "btn pri", type: "button", onclick: () => saveEdit(slot) }, "Save"),
     h("button", { class: "btn ghost", type: "button", onclick: () => { ui.edit = null; render(); } }, "Cancel")),
     EDITS[cur] ? h("button", { class: "btn ghost", type: "button", onclick: () => { removeEdit(cur); ui.edit = null; ui.flash = e.scope === "tpl" ? "Back to the program for every time this session runs." : "This day is back to the program."; render(); window.scrollTo(0, 0); } }, e.scope === "tpl" ? "Reset to program (every time)" : "Reset this day to program") : null,
-    h("p", { class: "small", text: "Logs stay attached by exercise name: rename a lift here and its old entries stay under the old name. The printed booklet keeps the program as written." })].filter(Boolean));
+    h("p", { class: "small", text: "Logs stay attached by name: rename an exercise, log row, column or field and its old entries stay under the old name. The printed booklet keeps the program as written." })].filter(Boolean));
   return box;
 }
 
