@@ -519,10 +519,10 @@ function buildSchedule() {
   return { seq, holds, dropped, short, gap, by };
 }
 function slotDate(inst, d) { return inst.start ? fromNum(dnum(inst.start) + d) : ""; }
-// day swaps: S.moves[iid][position] = template day; D6 and D7 never move
+// day swaps: S.moves[iid][position] = template day; any two days can swap, rest days included (user's call 16 Nov 2026)
 function permOf(inst) {
   const m = S.moves && inst && S.moves[inst.iid];
-  if (!Array.isArray(m) || m.length !== 10 || m[5] !== 5 || m[6] !== 6 || ID10.some(i => m.indexOf(i) < 0)) return ID10;
+  if (!Array.isArray(m) || m.length !== 10 || ID10.some(i => m.indexOf(i) < 0)) return ID10;
   return m;
 }
 const posOf = (inst, t) => permOf(inst).indexOf(t);
@@ -1299,7 +1299,7 @@ function dayBlock(slot) {
   const shift = SHIFTS[d];
   if (ui.fromCycle && SCHED.by[ui.fromCycle]) el.append(h("button", { class: "back", type: "button", onclick: () => { ui.tab = "plan"; ui.cycle = ui.fromCycle; ui.fromCycle = null; ui.sel = null; render(); } }, "‹ Cycle " + ui.fromCycle));
   el.append(h("div", { class: "dayhead" },
-    h("div", { class: "when" }, h("b", { text: slot.date ? fmt(slot.date) : "Undated" }), h("span", { class: "chip " + shift, text: shift }), h("span", { text: WHEN[d] === "Rest" ? "Rest day" : WHEN[d] })),
+    h("div", { class: "when" }, h("b", { text: slot.date ? fmt(slot.date) : "Undated" }), h("span", { class: "chip " + shift, text: shift }), h("span", { text: WHEN[d] === "Rest" ? (s.kind === "rest" ? "Rest day" : "Rest day, training moved here") : WHEN[d] })),
     h("div", { class: "cyc" }, h("span", { class: "tag", text: slot.gap ? "Gap" : inst.iid }), h("span", { text: "D" + (d + 1) }),
       slot.gap ? h("span", { text: "Before the course" }) : cycLabel(slot.tpl))));
   if (slot.preview) el.append(h("div", { class: "banner info", text: "Preview of cycle A1, day 1." }));
@@ -1385,11 +1385,11 @@ function rhrNote(inp, box) {
 }
 function moveCard(slot) {
   const inst = slot.inst, d = slot.d;
-  if (slot.gap || slot.preview || slot.ov != null || d === 5 || d === 6 || !inst || !SCHED.by[inst.iid] || readOnly) return null;
+  if (slot.gap || slot.preview || slot.ov != null || !inst || !SCHED.by[inst.iid] || readOnly) return null;
   const sel = h("select", { class: "in", "aria-label": "Swap this day with another day in the cycle" });
   sel.append(h("option", { value: "" }, "Swap with another day"));
   for (let p = 0; p < 10; p++) {
-    if (p === d || p === 5 || p === 6) continue;
+    if (p === d) continue;
     const o = resolve(inst, p); if (o.ov != null) continue;
     sel.append(h("option", { value: String(p) }, "D" + (p + 1) + " " + SHIFTS[p] + (o.date ? ", " + fmt(o.date) : "") + ": " + (o.s.kind === "rest" ? "Rest" : txt(h("i", { html: o.s.title })))));
   }
@@ -1397,14 +1397,15 @@ function moveCard(slot) {
     if (sel.value === "") return;
     const p = +sel.value, other = resolve(inst, p);
     swapDays(inst, d, p);
-    ui.flash = (slot.s.kind === "rest" ? "Rest" : txt(h("i", { html: slot.s.title }))) + " now sits on D" + (p + 1) + (other.date ? " (" + fmt(other.date) + ")" : "") + ". Logs stay with each session.";
+    const into = other.s.kind === "rest" ? "Rest" : txt(h("i", { html: other.s.title }));
+    ui.flash = into + " is now on D" + (d + 1) + (slot.date ? " (" + fmt(slot.date) + ")" : "") + "; " + (slot.s.kind === "rest" ? "rest" : txt(h("i", { html: slot.s.title }))) + " moved to D" + (p + 1) + (other.date ? " (" + fmt(other.date) + ")" : "") + ". Logs stay with each session.";
     ui.sel = slot.date && isISO(S.a1Start) ? { date: slot.date } : { iid: inst.iid, d };
     render(); window.scrollTo(0, 0);
   });
   const moved = permOf(inst) !== ID10;
   return h("details", { class: "ref mv" + (moved ? " on" : "") }, h("summary", { text: moved ? "Move a session · this cycle has moves" : "Move a session" }),
     h("div", { class: "refbody stack" },
-      h("p", { class: "small", text: "Swap this day with another day in " + inst.iid + ". D6 and D7 stay rest (your rule) and test-week days stay put. Logs stay with each session." }), sel,
+      h("p", { class: "small", text: "Swap this day with any other day in " + inst.iid + ", rest days included (recalled to work, shifts changed). Test-week days stay put. Logs stay with each session." }), sel,
       moved ? h("button", { class: "btn ghost", type: "button", onclick: () => { if (readOnly) return; S.moves = Object.assign({}, S.moves); delete S.moves[inst.iid]; queueSettings(); ui.flash = "Every " + inst.iid + " session is back on its program day."; render(); window.scrollTo(0, 0); } }, "Put " + inst.iid + " back as planned") : null));
 }
 function restBlock(slot) {
@@ -1420,7 +1421,7 @@ function restBlock(slot) {
   const notes = h("textarea", { class: "in", placeholder: "Niggles, sleep after nights" }); notes.value = (doc && doc.notes) || "";
   notes.addEventListener("input", () => setVal(slot, "$notes", notes.value));
   return h("div", { class: "stack" },
-    h("div", { class: "meta", text: (slot.s.src || "Your rule") + " · D6 and D7 rest every cycle" }),
+    h("div", { class: "meta", text: (slot.s.src || "Your rule") + (slot.moved && slot.ov == null ? " · moved here from D" + (slot.t + 1) : " · D6 and D7 rest every cycle") }),
     h("div", { class: "card stack" },
       h("p", { class: "small", text: "No training. Optional recovery work only (SASR): foam roller, trigger point, stretching, cold water, massage. Sleep after nights comes first. SF's day-7 option: 40 min stretching (cool-down holds 10-30 sec) and the lower back block." }),
       h("div", { class: "flds" }, f("$rhr", "Morning RHR", "numeric", S.rhrBase ? "base " + S.rhrBase : "bpm"), f("r:sleep", "Sleep hrs", "decimal"), f("r:sore", "Soreness 1-10", "numeric"), f("r:bw", "Body kg", "decimal")),
