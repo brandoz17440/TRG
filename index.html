@@ -340,6 +340,30 @@ details.mv.on>summary{color:var(--ink)}
 (function () {
 "use strict";
 const P = JSON.parse(document.getElementById("prog").textContent);
+// no heart-rate boxes (user's call 27 Nov 2026): "Avg HR" log columns and fields come out of the program as it loads; the booklet keeps them
+const HR_RE = /^\s*(avg\.?|average)\s*(hr|heart rate)\s*$/i;
+function dropHRCols(t) {
+  const rows = Array.from(t.querySelectorAll("tr")); if (!rows.length) return false;
+  const idx = Array.from(rows[0].children).map((c, i) => (i > 0 && HR_RE.test(c.textContent)) ? i : -1).filter(i => i >= 0).reverse();
+  rows.forEach(tr => idx.forEach(i => { if (tr.children[i]) tr.children[i].remove(); }));
+  return idx.length > 0;
+}
+function dropHR(html) {
+  if (!html || !/HR|heart rate/i.test(html)) return html;
+  const box = new DOMParser().parseFromString('<div id="x">' + html + "</div>", "text/html").getElementById("x");
+  let hit = false;
+  box.querySelectorAll("table").forEach(t => { if (dropHRCols(t)) hit = true; });
+  box.querySelectorAll(".fld").forEach(f => { const sp = f.querySelector("span"); if (sp && HR_RE.test(sp.textContent)) { f.remove(); hit = true; } });
+  box.querySelectorAll(".flds").forEach(g => { if (!g.querySelector(".fld")) g.remove(); });
+  return hit ? box.innerHTML : html;
+}
+(function stripHRProgram() {
+  const seen = new Set();
+  const fix = s => { if (!s || typeof s !== "object" || seen.has(s)) return; seen.add(s); if (typeof s.log === "string") s.log = dropHR(s.log); if (s.fin) fix(s.fin); };
+  P.cycles.forEach(c => c.days.forEach(fix));
+  Object.values(P.taper || {}).forEach(t => Object.values(t || {}).forEach(fix));
+  [P.mas, P.testDay, P.gap].forEach(fix);
+})();
 const WEB = P.web === true; // GitHub Pages build: data stays in this browser
 const CYC = {}; P.cycles.forEach(c => { CYC[c.id] = c; });
 const SHIFTS = P.shifts, WHEN = P.when;
@@ -1129,7 +1153,33 @@ function customFin(c, kind) {
   const log = (L.ticks || []).map(g => ticksHtml(g.n, g.label)).join("") + (L.lgs || []).filter(t => t.rows.length).map(buildTable).join("") + (L.flds || []).filter(g => g.labels.length).map(fldsHtml).join("");
   return { key: "custom", title: c.title || "My finisher", src: "Your finisher", mins: c.mins || "10", body, log, plan: (c.title || "My finisher") + " (~" + (c.mins || "10") + " min)" };
 }
-const finWithBank = ref => FINBANK[ref] ? (EDITS["f_" + ref] ? editFin(FINBANK[ref], EDITS["f_" + ref]) : FINBANK[ref]) : null;
+// edits saved before the heart-rate boxes came out (27 Nov 2026) are read without their Avg HR columns and fields
+const HR_CUT = Date.parse("2026-11-27T04:45:00+08:00"), CLEANED = new WeakMap();
+function hrTable(te) {
+  if (!te || te.kind !== "lg" || !/HR|heart rate/i.test(te.hh || "")) return te;
+  const t = frag("<table>" + (te.hh || "") + te.rows.map(r => "<tr>" + r.map(c => "<td>" + c + "</td>").join("") + "</tr>").join("") + "</table>").querySelector("table");
+  const idx = Array.from(t.querySelectorAll("tr")[0].children).map((c, i) => (i > 0 && HR_RE.test(c.textContent)) ? i : -1).filter(i => i >= 0);
+  if (!idx.length) return te;
+  const hhRow = frag("<table>" + te.hh + "</table>").querySelector("tr"); idx.slice().reverse().forEach(i => { if (hhRow.children[i]) hhRow.children[i].remove(); });
+  return Object.assign({}, te, { hh: hhRow.outerHTML, rows: te.rows.map(r => r.filter((c, i) => idx.indexOf(i) < 0)) });
+}
+const hrTables = tb => { if (!tb) return tb; const o = {}; Object.keys(tb).forEach(k => { o[k] = hrTable(tb[k]); }); return o; };
+const hrLogx = x => { if (!x || !x.flds) return x; const f = {}; Object.keys(x.flds).forEach(i => { const g = x.flds[i]; f[i] = Object.assign({}, g, { labels: (g.labels || []).filter(l => !HR_RE.test(l)) }); }); return Object.assign({}, x, { flds: f }); };
+function hrEdit(e) { return e ? Object.assign({}, e, e.tables ? { tables: hrTables(e.tables) } : {}, e.logx ? { logx: hrLogx(e.logx) } : {}) : e; }
+function ED(id) {
+  const d = EDITS[id];
+  if (!d || (d.updatedAt || 0) >= HR_CUT) return d;
+  if (CLEANED.has(d)) return CLEANED.get(d);
+  const o = hrEdit(d);
+  if (d.fin) {
+    o.fin = Object.assign({}, d.fin);
+    if (d.fin.edit) o.fin.edit = hrEdit(d.fin.edit);
+    if (d.fin.custom && d.fin.custom.log) { const L = d.fin.custom.log; o.fin.custom = Object.assign({}, d.fin.custom, { log: Object.assign({}, L, { flds: (L.flds || []).map(g => Object.assign({}, g, { labels: (g.labels || []).filter(l => !HR_RE.test(l)) })).filter(g => g.labels.length), lgs: (L.lgs || []).map(hrTable) }) }); }
+  }
+  CLEANED.set(d, o);
+  return o;
+}
+const finWithBank = ref => FINBANK[ref] ? (ED("f_" + ref) ? editFin(FINBANK[ref], ED("f_" + ref)) : FINBANK[ref]) : null;
 const CMP = new WeakMap();
 function compile(base, docs) {
   const fk = base.fin ? base.fin.key : "";
@@ -1159,7 +1209,7 @@ function compile(base, docs) {
   }
   let f = fin ? (fin.mode === "none" ? null : fin.mode === "custom" ? customFin(fin.custom || {}, base.kind) : (FINBANK[fin.ref] || null)) : (base.fin || null);
   if (f && f.key !== "custom") {
-    const bankE = EDITS["f_" + f.key], sessE = fin && fin.mode === "bank" ? fin.edit : null;
+    const bankE = ED("f_" + f.key), sessE = fin && fin.mode === "bank" ? fin.edit : null;
     if (bankE) s.finEdited = true;
     if (bankE || sessE) f = editFin(f, mergeFinEdits(bankE, sessE)); // one pass over the program finisher, so indices line up
   }
@@ -1171,7 +1221,7 @@ function compile(base, docs) {
 function tplDocId(slot) { return slot.ov == null && !slot.gap && slot.inst && CYC[slot.inst.tpl] && slot.t != null ? "t_" + slot.inst.tpl + "_D" + (slot.t + 1) : null; }
 function withEdits(slot) {
   if (!slot || !slot.s || slot.s.kind === "rest") return slot;
-  const tid = tplDocId(slot), docs = [tid ? EDITS[tid] : null, EDITS["d_" + slot.key]].filter(Boolean);
+  const tid = tplDocId(slot), docs = [tid ? ED(tid) : null, ED("d_" + slot.key)].filter(Boolean);
   const fk = slot.s.fin && slot.s.fin.key;
   if (!docs.length && !(fk && EDITS["f_" + fk])) return slot;
   slot.base = slot.s; slot.s = compile(slot.s, docs);
@@ -1372,7 +1422,7 @@ function overlayFin(m, e) {
   overlayGroups(m.logx, e.logx);
   return m;
 }
-const bankModel = ref => overlayFin(finModel(FINBANK[ref]), EDITS["f_" + ref]);
+const bankModel = ref => overlayFin(finModel(FINBANK[ref]), ED("f_" + ref));
 function finDraftFrom(spec, baseFin) {
   if (spec ? spec.mode === "none" : !baseFin) return { mode: "none" };
   if (spec && spec.mode === "custom") return Object.assign(finModel(customFin(spec.custom || {}, "")), { mode: "custom", ref: "custom", everywhere: false });
@@ -1397,7 +1447,7 @@ function finSpec(fd) {
   return Object.keys(e).length ? { mode: "bank", ref: fd.ref, edit: e } : { mode: "bank", ref: fd.ref };
 }
 // session model for one edit scope: the program plus the edits below it (own = include this scope's saved edit)
-function scopeDocs(slot, scope, own) { const tid = tplDocId(slot), t = tid ? EDITS[tid] : null, dd = EDITS["d_" + slot.key]; return (scope === "tpl" ? [own ? t : null] : [t, own ? dd : null]).filter(Boolean); }
+function scopeDocs(slot, scope, own) { const tid = tplDocId(slot), t = tid ? ED(tid) : null, dd = ED("d_" + slot.key); return (scope === "tpl" ? [own ? t : null] : [t, own ? dd : null]).filter(Boolean); }
 function draftFor(slot, scope, own) {
   const base = slot.base || slot.s, docs = scopeDocs(slot, scope, own), s = compile(base, docs);
   const m = { tables: edTables(base.body, base.log), logx: { flds: readGroups(base.log, "flds"), ticks: readGroups(base.log, "ticks") }, bodyx: { flds: [], ticks: readGroups(base.body, "ticks") } };
