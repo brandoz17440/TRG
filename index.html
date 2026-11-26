@@ -321,6 +321,14 @@ details.mv.on>summary{color:var(--ink)}
 .erem{align-items:center;gap:10px;padding:8px 10px;border:1px dashed var(--line);border-radius:8px}
 .carry{font-size:12.5px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
 .wts .carry{margin-top:2px}
+/* second sessions */
+.xsess{margin-top:18px;padding-top:16px;border-top:3px double var(--line)}
+.xhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.xtag{font-family:var(--display);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--olive-ink);background:var(--olive);padding:3px 9px;border-radius:5px}
+.B .xtag{color:var(--pb-ink);background:var(--pb)}
+.drow.xrow .dn{color:var(--olive);font-weight:700}
+.sc{position:relative}
+.sc.plus::after{content:"+";position:absolute;top:-6px;right:-5px;width:15px;height:15px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;line-height:1;color:var(--surface);background:var(--ink);z-index:1}
 </style>
 </head>
 <body>
@@ -434,7 +442,7 @@ const txt = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
 })();
 
 /* ---------------- state ---------------- */
-const DEF = { a1Start: "", courseDate: "", testDate: "", testPassed: false, rhrBase: "", tt1600: "", vestKg: "", oneRM: {}, oneRMsrc: {}, rename: {}, age: "", moves: {}, kit: {}, look: {} };
+const DEF = { a1Start: "", courseDate: "", testDate: "", testPassed: false, rhrBase: "", tt1600: "", vestKg: "", oneRM: {}, oneRMsrc: {}, rename: {}, age: "", moves: {}, kit: {}, look: {}, extra: {} };
 const DEFKIT = Object.assign({ skip: "Rope", back: "", emc: "A" }, P.defaultKit || {});
 function normS(x) {
   x = x || {};
@@ -442,6 +450,7 @@ function normS(x) {
   o.oneRM = Object.assign({}, x.oneRM || {}); o.rename = Object.assign({}, x.rename || {});
   o.moves = Object.assign({}, x.moves || {}); o.kit = Object.assign({}, DEFKIT, x.kit || {}); o.oneRMsrc = Object.assign({}, x.oneRMsrc || {});
   o.look = Object.assign({}, x.look || {});
+  o.extra = {}; Object.keys(x.extra || {}).forEach(k => { if (Array.isArray(x.extra[k]) && x.extra[k].length) o.extra[k] = x.extra[k].filter(e => e && typeof e.at === "number" && (typeof e.t === "number" || e.id)); });
   return o;
 }
 let S = normS({});
@@ -580,6 +589,19 @@ function swapDays(inst, a, b) {
   if (m.every((v, i) => v === i)) delete S.moves[inst.iid]; else S.moves[inst.iid] = m;
   queueSettings();
 }
+// second sessions (user's call 27 Nov 2026): S.extra[iid] = [{ at: position, t: template day }] moves a session onto another day as an extra;
+// [{ at, id }] adds your own session there (content in edits/d_X_<id>). The pulled session's own day turns rest.
+const extrasOf = inst => (S.extra && inst && Array.isArray(S.extra[inst.iid])) ? S.extra[inst.iid] : [];
+const CUSTOM_SESSION = { kind: "custom", title: "Extra session", src: "Your session", venue: "", dress: "", inten: "", plan: "Your own session",
+  body: '<p class="rx">Tap Edit session to write it: title, instructions, exercise list and what to log.</p>', log: '<div class="flds c2"><div class="fld"><span>Time</span><i></i></div><div class="fld"><span>Distance or rounds</span><i></i></div></div>' };
+function mkSlot(inst, d, t, date, extra) { const tpl = CYC[inst.tpl]; return withEdits({ inst, d, t, date, s: tpl.days[t], key: inst.iid + "_D" + (t + 1), ov: null, tpl, phase: tpl.phase, moved: t !== d, extra: !!extra }); }
+function extraSlots(slot) {
+  if (!slot || !slot.inst || slot.gap || slot.ov != null || slot.preview || !SCHED.by[slot.inst.iid]) return [];
+  return extrasOf(slot.inst).filter(e => e.at === slot.d).map(e => e.id
+    ? withEdits({ inst: slot.inst, d: slot.d, t: null, date: slot.date, s: CUSTOM_SESSION, key: "X_" + e.id, ov: null, tpl: slot.tpl, phase: slot.phase, moved: false, extra: true, custom: true, xid: e.id })
+    : mkSlot(slot.inst, slot.d, e.t, slot.date, true));
+}
+function setExtras(inst, list) { if (readOnly) return; S.extra = Object.assign({}, S.extra); if (list.length) S.extra[inst.iid] = list; else delete S.extra[inst.iid]; queueSettings(); }
 function resolve(inst, d) {
   const tpl = CYC[inst.tpl], date = slotDate(inst, d), t = permOf(inst)[d];
   let s = tpl.days[t], key = inst.iid + "_D" + (t + 1), ov = null;
@@ -591,6 +613,7 @@ function resolve(inst, d) {
         : off === 0 ? P.testDay : { kind: "rest", src: off === 1 ? "Day after the test" : "SASR taper 12." + (off === -3 ? "4" : "6") };
     }
   }
+  if (ov == null) { const e = extrasOf(inst).find(x => x.t === t); if (e) return { inst, d, t, date, s: { kind: "rest", src: "Done on D" + (e.at + 1) + " as a second session" }, key: inst.iid + "_P" + (d + 1) + "-free", ov: null, tpl, phase: tpl.phase, moved: false, freed: e.at }; }
   return withEdits({ inst, d, t, date, s, key, ov, tpl, phase: tpl.phase, moved: t !== d });
 }
 function slotFor(date) {
@@ -1312,8 +1335,9 @@ const rxShow = rx => { const [a, b] = String(rx || "").split("|"); return [a, b]
 const kgR = x => Math.round(x / 2.5) * 2.5;
 function sessionOfLog(x) {
   const inst = SCHED.by[x.iid]; if (!inst || /-ov$|^GAP/.test(x.key || "")) return null;
+  if (/^X_/.test(x.key || "")) { const sl = withEdits({ inst, d: 0, t: null, date: x.date, s: CUSTOM_SESSION, key: x.key, ov: null, tpl: CYC[inst.tpl], phase: "A" }); return sl && sl.s; }
   const p = posOf(inst, x.day - 1); if (p < 0) return null;
-  try { const sl = resolve(inst, p); return sl && sl.s; } catch (e) { return null; }
+  try { const sl = mkSlot(inst, p, x.day - 1, x.date); return sl && sl.s; } catch (e) { return null; }
 }
 function strRx(s, name) {
   if (!s || !s.log) return "";
@@ -1624,9 +1648,25 @@ function startCard() {
 function dayBlock(slot) {
   const s = slot.s, d = slot.d, inst = slot.inst, isB = slot.phase === "B";
   const el = h("section", { class: "stack" + (isB ? " B" : "") });
-  const doc = LOGS[slot.key];
-  if (ui.edit && ui.edit.key !== slot.key) ui.edit = null;
+  const doc = LOGS[slot.key], X = !!slot.extra, xs = X ? [] : extraSlots(slot);
+  if (!X && ui.edit && [slot.key].concat(xs.map(x => x.key)).indexOf(ui.edit.key) < 0) ui.edit = null;
+  const addXs = () => xs.forEach((x, i) => { x.xn = i + 2; el.append(dayBlock(x)); });
   const shift = SHIFTS[d];
+  if (X) {
+    const n = slot.xn || 2, word = ["", "", "Second", "Third", "Fourth", "Fifth"][n] || ("Session " + n);
+    const src = slot.custom ? "Your own session" : "Moved here from D" + (posOf(inst, slot.t) + 1) + (slotDate(inst, posOf(inst, slot.t)) ? " (" + fmt(slotDate(inst, posOf(inst, slot.t))) + ")" : "");
+    let armed = false;
+    const rm = readOnly ? null : h("button", { type: "button", class: "btn ghost sm", onclick: ev => {
+      if (slot.custom && !armed) { armed = true; ev.currentTarget.textContent = "Tap again to remove it"; return; }
+      setExtras(inst, extrasOf(inst).filter(e => slot.custom ? e.id !== slot.xid : !(e.t === slot.t && e.at === slot.d)));
+      if (slot.custom) removeEdit("d_" + slot.key);
+      ui.edit = null; ui.flash = slot.custom ? "Your extra session is off this day." : txt(h("i", { html: s.title })) + " is back on D" + (posOf(inst, slot.t) + 1) + ".";
+      render(); window.scrollTo(0, 0);
+    } }, slot.custom ? "Remove this session" : "Put it back on D" + (posOf(inst, slot.t) + 1));
+    el.classList.add("xsess");
+    el.append(h("div", { class: "xhead" }, h("div", null, h("span", { class: "xtag", text: word + " session" }), h("div", { class: "small", text: src })), rm));
+  }
+  if (!X) {
   if (ui.fromCycle && SCHED.by[ui.fromCycle]) el.append(h("button", { class: "back", type: "button", onclick: () => { ui.tab = "plan"; ui.cycle = ui.fromCycle; ui.fromCycle = null; ui.sel = null; render(); } }, "‹ Cycle " + ui.fromCycle));
   el.append(h("div", { class: "dayhead" },
     h("div", { class: "when" }, h("b", { text: slot.date ? fmt(slot.date) : "Undated" }), h("span", { class: "chip " + shift, text: shift }), h("span", { text: WHEN[d] === "Rest" ? (s.kind === "rest" ? "Rest day" : "Rest day, training moved here") : WHEN[d] })),
@@ -1635,17 +1675,19 @@ function dayBlock(slot) {
   if (slot.preview) el.append(h("div", { class: "banner info", text: "Preview of cycle A1, day 1." }));
   if (inst.iid && inst.iid.charAt(0) === "H") el.append(h("div", { class: "banner info", text: "Hold " + inst.iid + " repeats the " + inst.tpl + " sessions." }));
   if (ui.flash) { el.append(h("div", { class: "banner blue", text: ui.flash })); ui.flash = ""; }
+  if (xs.length) el.append(h("div", { class: "banner info" }, (xs.length === 1 ? "Two sessions on this day. The second, " : (xs.length + 1) + " sessions on this day. The others, ") + xs.map(x => txt(h("i", { html: x.s.title }))).join(" and ") + ", " + (xs.length === 1 ? "is" : "are") + " further down."));
   if (slot.moved && slot.ov == null) el.append(h("div", { class: "banner info" }, "Moved here from D" + (slot.t + 1) + " (" + SHIFTS[slot.t] + "), the program's day for this session."));
   if (slot.ov != null) {
     const planned = slot.tpl.days[slot.t != null ? slot.t : d];
     const lab = slot.ov === 0 ? "Fitness test day." : slot.ov === 1 ? "Day after the fitness test: rest." : "Fitness test taper, T" + slot.ov + " (SASR taper template).";
     el.append(h("div", { class: "banner test" }, lab + (planned.kind !== "rest" ? " Replaces: " : ""), planned.kind !== "rest" ? h("span", { html: planned.title }) : null));
   }
-  if (s.kind === "rest") { el.append(h("h1", { text: "Rest" })); el.append(restBlock(slot)); const mc = moveCard(slot); if (mc) el.append(mc); el.append(navRow(slot)); return el; }
+  }
+  if (s.kind === "rest") { el.append(h("h1", { text: "Rest" })); el.append(restBlock(slot)); addXs(); const mc = moveCard(slot); if (mc) el.append(mc); el.append(navRow(slot)); return el; }
   el.append(h("h1", { html: s.title }));
   const meta = [s.src ? "<b>" + s.src + "</b>" : "", s.venue, s.dress, s.inten && s.inten !== "-" ? s.inten : ""].filter(Boolean).join(" · ");
   el.append(h("div", { class: "meta", html: meta }));
-  if (ui.edit && !readOnly) { el.append(editorCard(slot)); return el; }
+  if (ui.edit && ui.edit.key === slot.key && !readOnly) { el.append(editorCard(slot)); return el; }
   const eds = s.edits || [];
   if (eds.length || s.finEdited) el.append(h("div", { class: "banner ed" }, "Edited by you: " + [eds.indexOf("d") >= 0 ? "this day" : "", eds.indexOf("t") >= 0 ? "every time this session runs" : "", s.finEdited ? "finisher, everywhere it appears" : ""].filter(Boolean).join(" · ") + ". ",
     readOnly ? null : h("button", { type: "button", class: "lnk", onclick: () => openEditor(slot, eds.indexOf("d") < 0 && eds.indexOf("t") >= 0 ? "tpl" : "day") }, "Edit or reset")));
@@ -1654,7 +1696,7 @@ function dayBlock(slot) {
   // quick row
   const done = !!(doc && doc.done);
   const db_ = h("button", { class: "done", type: "button", "aria-pressed": String(done) }, done ? "✓ Done" : "Mark done");
-  db_.addEventListener("click", () => { const on = db_.getAttribute("aria-pressed") !== "true"; db_.setAttribute("aria-pressed", String(on)); db_.textContent = on ? "✓ Done" : "Mark done"; setVal(slot, "$done", on); if (on) $$("[data-carry]", el).forEach(x => x._commit && x._commit()); });
+  db_.addEventListener("click", () => { const on = db_.getAttribute("aria-pressed") !== "true"; db_.setAttribute("aria-pressed", String(on)); db_.textContent = on ? "✓ Done" : "Mark done"; setVal(slot, "$done", on); if (on) $$("[data-carry]", el).filter(x => x.closest("section") === el).forEach(x => x._commit && x._commit()); });
   el.append(h("div", { class: "quick" }, db_));
   // prescription
   const rxb = h("div", { class: "rxbody", html: s.body });
@@ -1697,6 +1739,8 @@ function dayBlock(slot) {
   const notes = h("textarea", { class: "in", placeholder: "How it went, niggles, what to change" }); notes.value = (doc && doc.notes) || "";
   notes.addEventListener("input", () => setVal(slot, "$notes", notes.value));
   el.append(h("label", { class: "f" }, "Notes", notes));
+  if (X) return el;
+  addXs();
   const mc = moveCard(slot); if (mc) el.append(mc);
   el.append(navRow(slot));
   return el;
@@ -1720,11 +1764,36 @@ function moveCard(slot) {
     ui.sel = slot.date && isISO(S.a1Start) ? { date: slot.date } : { iid: inst.iid, d };
     render(); window.scrollTo(0, 0);
   });
-  const moved = permOf(inst) !== ID10;
-  return h("details", { class: "ref mv" + (moved ? " on" : "") }, h("summary", { text: moved ? "Move a session · this cycle has moves" : "Move a session" }),
+  // second session on this day: pull one from another day in the cycle (that day goes rest), or add your own
+  const add = h("select", { class: "in", "aria-label": "Add a second session to this day" });
+  add.append(h("option", { value: "" }, "Add a second session to this day"));
+  for (let p = 0; p < 10; p++) {
+    if (p === d) continue;
+    const o = resolve(inst, p); if (o.ov != null || o.s.kind === "rest") continue;
+    add.append(h("option", { value: String(p) }, "D" + (p + 1) + " " + SHIFTS[p] + (o.date ? ", " + fmt(o.date) : "") + ": " + txt(h("i", { html: o.s.title }))));
+  }
+  add.append(h("option", { value: "own" }, "My own session (write it)"));
+  add.addEventListener("change", () => {
+    if (add.value === "" || readOnly) return;
+    ui.sel = slot.date && isISO(S.a1Start) ? { date: slot.date } : { iid: inst.iid, d };
+    if (add.value === "own") {
+      const id = Date.now().toString(36);
+      setExtras(inst, extrasOf(inst).concat([{ at: d, id }]));
+      const xs = extraSlots(slot), x = xs.find(z => z.xid === id);
+      if (x) { x.xn = xs.length + 1; openEditor(x, "day"); return; }
+      render(); return;
+    }
+    const p = +add.value, other = resolve(inst, p);
+    setExtras(inst, extrasOf(inst).concat([{ at: d, t: other.t }]));
+    ui.flash = txt(h("i", { html: other.s.title })) + " added as a second session on D" + (d + 1) + ". D" + (p + 1) + (other.date ? " (" + fmt(other.date) + ")" : "") + " is now a rest day.";
+    render(); window.scrollTo(0, 0);
+  });
+  const moved = permOf(inst) !== ID10 || extrasOf(inst).length > 0;
+  return h("details", { class: "ref mv" + (moved ? " on" : "") }, h("summary", { text: moved ? "Move a session · this cycle has changes" : "Move a session" }),
     h("div", { class: "refbody stack" },
       h("p", { class: "small", text: "Swap this day with any other day in " + inst.iid + ", rest days included (recalled to work, shifts changed). Test-week days stay put. Logs stay with each session." }), sel,
-      moved ? h("button", { class: "btn ghost", type: "button", onclick: () => { if (readOnly) return; S.moves = Object.assign({}, S.moves); delete S.moves[inst.iid]; queueSettings(); ui.flash = "Every " + inst.iid + " session is back on its program day."; render(); window.scrollTo(0, 0); } }, "Put " + inst.iid + " back as planned") : null));
+      h("p", { class: "small", text: "Or do two sessions today: pull one in from another day of " + inst.iid + " (that day turns rest), or write your own extra session." }), add,
+      moved ? h("button", { class: "btn ghost", type: "button", onclick: () => { if (readOnly) return; S.moves = Object.assign({}, S.moves); delete S.moves[inst.iid]; extrasOf(inst).forEach(e => { if (e.id) removeEdit("d_X_" + e.id); }); setExtras(inst, []); queueSettings(); ui.flash = "Every " + inst.iid + " session is back on its program day, one a day."; render(); window.scrollTo(0, 0); } }, "Put " + inst.iid + " back as planned") : null));
 }
 function restBlock(slot) {
   const doc = LOGS[slot.key], V = (doc && doc.v) || {};
@@ -1739,7 +1808,7 @@ function restBlock(slot) {
   const notes = h("textarea", { class: "in", placeholder: "Niggles, sleep after nights" }); notes.value = (doc && doc.notes) || "";
   notes.addEventListener("input", () => setVal(slot, "$notes", notes.value));
   return h("div", { class: "stack" },
-    h("div", { class: "meta", text: (slot.s.src || "Your rule") + (slot.moved && slot.ov == null ? " · moved here from D" + (slot.t + 1) : " · D6 and D7 rest every cycle") }),
+    h("div", { class: "meta", text: slot.freed != null ? slot.s.src + ". This day is free: swap something into it if you like." : (slot.s.src || "Your rule") + (slot.moved && slot.ov == null ? " · moved here from D" + (slot.t + 1) : " · D6 and D7 rest every cycle") }),
     h("div", { class: "card stack" },
       h("p", { class: "small", text: "No training. Optional recovery work only (SASR): foam roller, trigger point, stretching, cold water, massage. Sleep after nights comes first. SF's day-7 option: 40 min stretching (cool-down holds 10-30 sec) and the lower back block." }),
       h("div", { class: "flds" }, f("r:sleep", "Sleep hrs", "decimal"), f("r:sore", "Soreness 1-10", "numeric"), f("r:bw", "Body kg", "decimal")),
@@ -1784,7 +1853,7 @@ function agRow(sl) {
   const f = famOf(sl.s), go = () => { ui.tab = "today"; ui.fromCycle = null; ui.sel = { date: sl.date }; render(); window.scrollTo(0, 0); };
   return h("button", { type: "button", class: "agrow", onclick: go },
     f ? h("span", { class: "mk", style: "--kc:var(--k-" + f[0] + ")", text: f[1], title: f[2] }) : h("span"),
-    h("div", null, h("div", { class: "tt", html: sl.s.title }), h("div", { class: "pl", text: fmt(sl.date) + " · " + (sl.gap ? "Gap" : sl.inst.iid + " D" + (sl.d + 1)) + " · " + SHIFTS[sl.d] })),
+    h("div", null, h("div", { class: "tt", html: sl.s.title }), h("div", { class: "pl", text: fmt(sl.date) + " · " + (sl.gap ? "Gap" : sl.inst.iid + " D" + (sl.d + 1)) + (sl.extra ? " · second session" : "") + " · " + SHIFTS[sl.d] })),
     h("span", { class: "go", text: "›" }));
 }
 function agenda() {
@@ -1792,14 +1861,14 @@ function agenda() {
   for (let n = a0; n < t0; n++) {
     const sl = slotFor(fromNum(n));
     if (!sl || sl.after) break;
-    if (sl.before || !sl.s || sl.s.kind === "rest") continue;
-    if (!slotDone(sl)) over.push(sl);
+    if (sl.before || !sl.s) continue;
+    [sl].concat(extraSlots(sl)).forEach(x => { if (x.s.kind !== "rest" && !slotDone(x)) over.push(x); });
   }
   for (let n = Math.max(t0 + 1, a0); next.length < 3 && n < Math.max(t0, a0) + 40; n++) {
     const sl = slotFor(fromNum(n));
     if (!sl || sl.after) break;
-    if (sl.before || !sl.s || sl.s.kind === "rest") continue;
-    next.push(sl);
+    if (sl.before || !sl.s) continue;
+    [sl].concat(extraSlots(sl)).forEach(x => { if (x.s.kind !== "rest" && next.length < 3) next.push(x); });
   }
   if (!over.length && !next.length) return null;
   const box = h("div", { class: "stack" });
@@ -1863,9 +1932,16 @@ function viewCycle(v) {
       h("div", { class: "dn" }, "D" + (d + 1), h("small", { text: sl.date ? fmt(sl.date, { weekday: undefined }) : SHIFTS[d] })),
       h("div", null, h("div", { class: "tt", html: rest ? "Rest" : s.title }), h("div", { class: "pl", html: mv + (rest ? (s.src || "") : (sl.ov != null ? "Test week overlay" : renamePlan(s.plan) + (s.fin ? " · <b>+ " + esc(s.fin.title) + "</b>" : ""))) })),
       rest ? h("span") : h("span", { class: "ck" + (done ? " on" : ""), "aria-label": done ? "Done" : "Not done" })));
+    extraSlots(sl).forEach(x => {
+      const xf = famOf(x.s), xd = slotDone(x);
+      list.append(h("button", { type: "button", class: "drow xrow", style: xf ? "--kc:var(--k-" + xf[0] + ")" : null, onclick: () => { ui.tab = "today"; ui.fromCycle = inst.iid; ui.sel = sl.date && isISO(S.a1Start) ? { date: sl.date } : { iid: inst.iid, d }; render(); window.scrollTo(0, 0); } },
+        h("div", { class: "dn" }, "+", h("small", { text: "D" + (d + 1) })),
+        h("div", null, h("div", { class: "tt", html: x.s.title }), h("div", { class: "pl", html: "<b>Second session" + (x.custom ? " (yours)" : ", from D" + (posOf(inst, x.t) + 1)) + ".</b> " + (x.custom ? "" : renamePlan(x.s.plan || "")) })),
+        h("span", { class: "ck" + (xd ? " on" : ""), "aria-label": xd ? "Done" : "Not done" })));
+    });
   }
   box.append(list);
-  if (permOf(inst) !== ID10 && !readOnly) box.append(h("button", { class: "btn ghost", type: "button", onclick: () => { S.moves = Object.assign({}, S.moves); delete S.moves[inst.iid]; queueSettings(); render(); } }, "Put " + inst.iid + " back as planned"));
+  if ((permOf(inst) !== ID10 || extrasOf(inst).length) && !readOnly) box.append(h("button", { class: "btn ghost", type: "button", onclick: () => { S.moves = Object.assign({}, S.moves); delete S.moves[inst.iid]; extrasOf(inst).forEach(e => { if (e.id) removeEdit("d_X_" + e.id); }); setExtras(inst, []); queueSettings(); render(); } }, "Put " + inst.iid + " back as planned"));
   if (tpl.dropped) box.append(h("p", { class: "small", html: "<b>Not run from the source this cycle:</b> " + tpl.dropped }));
   // review
   const R = REV[inst.iid] || { iid: inst.iid, v: {} };
@@ -2294,9 +2370,9 @@ function renderStrip() {
   el.classList.toggle("B", tpl.phase === "B");
   const cells = h("div", { class: "cells" });
   for (let p = 0; p < 10; p++) {
-    const sl = resolve(inst, p), f = famOf(sl.s), done = slotDone(sl);
-    const lab = "D" + (p + 1) + " " + SHIFTS[p] + (sl.date ? ", " + fmt(sl.date) : "") + ": " + (f ? txt(h("i", { html: sl.s.title })) + (done ? ", done" : "") : "rest");
-    cells.append(h("button", { type: "button", class: "sc " + SHIFTS[p] + (sl.date && sl.date === today ? " now" : "") + (p === c.sel ? " sel" : ""), "aria-label": lab, "aria-current": p === c.sel ? "true" : null,
+    const sl = resolve(inst, p), f = famOf(sl.s), done = slotDone(sl), nx = extraSlots(sl).length;
+    const lab = (nx ? "Two sessions. " : "") + "D" + (p + 1) + " " + SHIFTS[p] + (sl.date ? ", " + fmt(sl.date) : "") + ": " + (f ? txt(h("i", { html: sl.s.title })) + (done ? ", done" : "") : "rest");
+    cells.append(h("button", { type: "button", class: "sc " + SHIFTS[p] + (sl.date && sl.date === today ? " now" : "") + (p === c.sel ? " sel" : "") + (nx ? " plus" : ""), "aria-label": lab, "aria-current": p === c.sel ? "true" : null,
       onclick: () => { ui.tab = "today"; ui.fromCycle = null; ui.cycle = null; ui.sel = sl.date && isISO(S.a1Start) ? { date: sl.date } : { iid: inst.iid, d: p }; render(); window.scrollTo(0, 0); } },
       h("span", { class: "c", text: "D" + (p + 1) }), h("span", { class: "dt", text: sl.date ? String(+sl.date.slice(8)) : "·" }),
       h("span", { class: "mk" + (f ? "" : " r") + (done ? " on" : "") + (sl.moved && sl.ov == null ? " mv" : ""), style: f ? "--kc:var(--k-" + f[0] + ")" : null, text: f ? f[1] : "R" })));
