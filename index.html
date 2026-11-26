@@ -2,7 +2,7 @@
 <html lang="en-AU">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#3f4a2b" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111410" media="(prefers-color-scheme: dark)">
 <meta name="description" content="TRG selection training program: 10-day roster, day sheets, logs and progress. Your log stays on your device.">
@@ -46,7 +46,7 @@
   --series:#b5c785; --grid:#2a3023; --focus:#d1b574; color-scheme:dark;
   --k-str:#3987e5; --k-run:#d95926; --k-swim:#199e70; --k-pack:#c98500; --k-course:#d55181; --k-gpp:#008300; --k-test:#9085e9}
 *{box-sizing:border-box}
-html,body{height:100%}
+html,body{height:100%;touch-action:pan-x pan-y}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;-webkit-text-size-adjust:100%}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
@@ -96,7 +96,7 @@ h3{font-size:16px;text-transform:uppercase;letter-spacing:.05em;color:var(--mute
 .banner.test{background:var(--redbg);border:1px solid var(--red)}
 .banner.info{background:var(--sandbg);border:1px solid var(--sand)}
 .banner.blue{background:var(--bluebg);border:1px solid var(--blue)}
-.quick{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;align-items:end}
+.quick{display:grid;grid-template-columns:1fr;gap:10px;align-items:end}
 .done{min-height:48px;border-radius:8px;border:2px solid var(--olive);background:transparent;font-family:var(--display);font-weight:700;font-size:17px;letter-spacing:.06em;text-transform:uppercase;color:var(--olive);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
 .B .done{border-color:var(--pb);color:var(--pb)}
 .done[aria-pressed="true"]{background:var(--olive);color:var(--olive-ink)}
@@ -319,6 +319,8 @@ details.mv.on>summary{color:var(--ink)}
 .ecols{min-width:0}
 .erow > .ecol{grid-template-columns:1fr 40px}
 .erem{align-items:center;gap:10px;padding:8px 10px;border:1px dashed var(--line);border-radius:8px}
+.carry{font-size:12.5px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
+.wts .carry{margin-top:2px}
 </style>
 </head>
 <body>
@@ -395,6 +397,17 @@ function fmtMin(m) { if (m == null) return ""; const t = Math.round(m * 60), hh 
 const num = v => { const x = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(x) ? null : x; };
 const clone = x => JSON.parse(JSON.stringify(x));
 const txt = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
+// no pinch or double-tap zoom (user's call 27 Nov 2026): CSS touch-action on html/body does the work; the viewport tag covers Android, gesture events cover older iOS
+(function noZoom() {
+  try {
+    let vp = document.querySelector('meta[name="viewport"]');
+    if (!vp) { vp = document.createElement("meta"); vp.name = "viewport"; document.head.appendChild(vp); }
+    vp.setAttribute("content", "width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover");
+  } catch (e) { /* page head not writable */ }
+  const stop = e => { if (e.cancelable) e.preventDefault(); };
+  ["gesturestart", "gesturechange", "gestureend"].forEach(t => document.addEventListener(t, stop, { passive: false }));
+  document.addEventListener("touchmove", e => { if (e.touches && e.touches.length > 1) stop(e); }, { passive: false });
+})();
 
 /* ---------------- state ---------------- */
 const DEF = { a1Start: "", courseDate: "", testDate: "", testPassed: false, rhrBase: "", tt1600: "", vestKg: "", oneRM: {}, oneRMsrc: {}, rename: {}, age: "", moves: {}, kit: {}, look: {} };
@@ -722,20 +735,28 @@ function hydrate(root, slot, scope, pre) {
         const k1 = "str:" + name + ":1rm", k2 = "str:" + name + ":kg";
         i1 = inp(k1, V[k1] != null ? V[k1] : (S.oneRM[name] != null ? S.oneRM[name] : ""), "kg", "decimal");
         i2 = inp(k2, get(k2), "kg", "decimal");
+        const rk = "str:" + name + ":rx", now = scheme + "|" + load, cn = h("div", { class: "carry hidden" });
+        trackRx(slot, i2, pre + rk, now);
+        if (get(k2) === "" && !readOnly) { const c = carryFor(slot, pre + k2, pre + rk, now, "pct", s2 => strRx(s2, name)); if (c) applyCarry(slot, i2, pre + k2, pre + rk, now, c, cn); }
+        i2.carryNote = cn;
         const sugg = () => { const rm = num(i1.value); i2.placeholder = rm ? "≈ " + (Math.round(rm * (plo + phi) / 200 / 2.5) * 2.5) : "kg"; };
         sugg(); i1.sugg = sugg;
         i1.addEventListener("input", () => { sugg(); const x = num(i1.value); if (x && !readOnly) { S.oneRM[name] = x; delete S.oneRMsrc[name]; queueSettings(); } });
-        card.append(h("div", { class: "exin" }, h("label", { class: "f" }, "1RM (kg)", i1), h("label", { class: "f" }, "Work kg (" + load + ")", i2)));
+        card.append(h("div", { class: "exin" }, h("label", { class: "f" }, "1RM (kg)", i1), h("label", { class: "f" }, "Work kg (" + load + ")", i2)), i2.carryNote);
       } else if (/jump/i.test(name)) {
         const kc = "str:" + name + ":cm";
         card.append(h("div", { class: "exin" }, h("label", { class: "f" }, "Best distance (cm)", inp(kc, get(kc), "cm", "decimal"))));
       } else {
-        const kk = "str:" + name + ":kg";
-        card.append(h("div", { class: "exin" }, h("label", { class: "f" }, "Weight (kg)", inp(kk, get(kk), "kg", "decimal"))));
+        const kk = "str:" + name + ":kg", rk = "str:" + name + ":rx", now = scheme + "|" + load, wi = inp(kk, get(kk), "kg", "decimal"), cn = h("div", { class: "carry hidden" });
+        trackRx(slot, wi, pre + rk, now);
+        if (get(kk) === "" && !readOnly) { const c = carryFor(slot, pre + kk, pre + rk, now, "reps", s2 => strRx(s2, name)); if (c) applyCarry(slot, wi, pre + kk, pre + rk, now, c, cn); }
+        i2 = wi;
+        card.append(h("div", { class: "exin" }, h("label", { class: "f" }, "Weight (kg)", wi)), cn);
       }
       const sets = h("div", { class: "sets" }), setIns = [];
       for (let i = 1; i <= nsets; i++) { const k = "str:" + name + ":s" + i, x = inp(k, get(k), reps || "reps", "numeric"); setIns.push(x); sets.append(h("label", { class: "f" }, "Set " + i, x)); }
       card.append(sets);
+      if (i2) setIns.forEach(x => x.addEventListener("input", () => { if (num(x.value) && i2._commit) i2._commit(); }));
       if (pct) card.append(rmEstimate(slot, pre, name, i1, i2, setIns, V));
       wrap.append(card);
     });
@@ -1221,22 +1242,80 @@ function loadedRows(html) {
   edEls(frag(html), "rxt").forEach(t => {
     const trs = $$("tr", t), hd = trs[0] ? Array.from(trs[0].children).map(c => cellText(c).toLowerCase()) : [], li = hd.indexOf("load");
     if (li < 1) return;
+    const ri = hd.findIndex((x, j) => j > 0 && j !== li && /reps|dist|time|sets/.test(x));
     trs.slice(1).forEach(tr => {
       const td = tr.children; if (!td[0] || !td[li]) return;
-      const name = cellText(td[0]), load = cellText(td[li]);
-      if (name && LOADED.test(load) && !/^-/.test(load) && !out.some(r => r[0] === name)) out.push([name, load]);
+      const name = cellText(td[0]), load = cellText(td[li]), reps = ri > 0 && td[ri] ? cellText(td[ri]) : "";
+      if (name && LOADED.test(load) && !/^-/.test(load) && !out.some(r => r[0] === name)) out.push([name, load, reps]);
     });
   });
   return out;
 }
+/* ---------------- weight carry-over (user's call 27 Nov 2026) ---------------- */
+// An empty weight box takes the weight from the last session that logged it. Same reps and % = same weight.
+// Otherwise strength lifts scale by the program % (new middle / old middle) and Weights used rows by the SASR reps table; to 2.5 kg.
+// The carried weight shows in the box and saves once a set is logged, the log is touched or the day is marked done.
+const pctMid = load => { const m = String(load || "").match(/(\d+)(?:\s*-\s*(\d+))?\s*%/); return m ? (+m[1] + +(m[2] || m[1])) / 2 : null; };
+const repsOf = x => { x = String(x || ""); const m = x.match(/x\s*(\d+)/i) || x.match(/^\s*(\d+)\s*(reps?|each( leg| side| arm)?|e\/s|per side|\/side)?\s*$/i); return m ? +m[1] : null; };
+const rxNorm = rx => String(rx || "").toLowerCase().replace(/\s+/g, "");
+const rxShow = rx => { const [a, b] = String(rx || "").split("|"); return [a, b].filter(Boolean).join(" @ "); };
+const kgR = x => Math.round(x / 2.5) * 2.5;
+function sessionOfLog(x) {
+  const inst = SCHED.by[x.iid]; if (!inst || /-ov$|^GAP/.test(x.key || "")) return null;
+  const p = posOf(inst, x.day - 1); if (p < 0) return null;
+  try { const sl = resolve(inst, p); return sl && sl.s; } catch (e) { return null; }
+}
+function strRx(s, name) {
+  if (!s || !s.log) return "";
+  for (const t of edEls(frag(s.log), "st")) for (const tr of $$("tr", t).slice(1)) {
+    const td = tr.children; if (!td[0]) continue;
+    if ((td[0].childNodes[0] ? td[0].childNodes[0].textContent : "").trim() === name) return txt(td[1]) + "|" + txt(td[2]);
+  }
+  return "";
+}
+function wtRx(s, name, pre) { if (!s) return ""; const html = pre ? (s.fin && s.fin.body) : s.body, r = html ? loadedRows(html).find(x => x[0] === name) : null; return r ? r[2] + "|" + r[1] : ""; }
+// last logged weight for this key before this day, worked to today's prescription
+function carryFor(slot, key, rxKey, now, kind, progRx) {
+  const L = logsSorted().filter(x => x.key !== slot.key && (!slot.date || x.date < slot.date) && num((x.v || {})[key]) > 0);
+  const x = L[L.length - 1]; if (!x) return null;
+  const kg = num(x.v[key]), then = x.v[rxKey] || progRx(sessionOfLog(x)) || "";
+  const out = { kg, from: kg, date: x.date, then, same: true };
+  if (!then || rxNorm(then) === rxNorm(now)) return out;
+  const [ns, nl] = now.split("|"), [ts, tl] = then.split("|"), a = pctMid(nl), b = pctMid(tl), ra = repsOf(ns), rb = repsOf(ts);
+  if (kind === "pct" && a && b) { out.kg = a === b ? kg : kgR(kg * a / b); out.same = a === b && ra === rb; }
+  else if (ra && rb && ra !== rb) { out.kg = kgR(kg * pctFor(ra) / pctFor(rb)); out.same = false; }
+  else out.same = ra === rb;
+  return out;
+}
+function carryNote(c, now) {
+  return c.same ? "Last session: " + c.kg + " kg on " + fmt(c.date) + (c.then ? " (" + rxShow(c.then) + ")" : "") + ". Saves when you log."
+    : (c.kg === c.from ? "Last used " + c.from + " kg on " + fmt(c.date) : "Adjusted from " + c.from + " kg on " + fmt(c.date)) + " (" + rxShow(c.then) + ", now " + rxShow(now) + "). Saves when you log.";
+}
+// put a carried weight in a box; commit() saves it with today's prescription
+function applyCarry(slot, i, key, rxKey, now, c, noteEl) {
+  i.value = c.kg; i.dataset.carry = "1"; noteEl.textContent = carryNote(c, now); noteEl.classList.remove("hidden");
+  i._commit = () => { if (!i.dataset.carry || readOnly) return; delete i.dataset.carry; setVal(slot, key, i.value); setVal(slot, rxKey, now); noteEl.classList.add("hidden"); };
+  i.addEventListener("input", () => { delete i.dataset.carry; noteEl.classList.add("hidden"); });
+}
+// typed weights keep the prescription they were lifted at, so the next session can compare
+function trackRx(slot, i, rxKey, now) { i.addEventListener("input", () => { if (num(i.value)) setVal(slot, rxKey, now); }); }
+// any other entry in that log commits the carried weights in it
+function commitOnUse(host, box) {
+  const go = e => { if (box.contains(e.target)) return; if (e.type === "click" && !e.target.closest(".ticks button, .tog")) return; $$("[data-carry]", box).forEach(x => x._commit && x._commit()); };
+  host.addEventListener("input", go); host.addEventListener("click", go);
+}
+
 function weightsBlock(slot, html, pre) {
   const rows = loadedRows(html); if (!rows.length) return null;
   const V = (LOGS[slot.key] && LOGS[slot.key].v) || {};
   const box = h("div", { class: "wts" }, h("b", { class: "small", text: "Weights used (kg)" }));
-  rows.forEach(([n, load]) => {
-    const k = pre + "wt:" + n, i = h("input", { class: "in", value: V[k] == null ? "" : V[k], placeholder: "kg", inputmode: "decimal", autocomplete: "off", enterkeyhint: "done", "aria-label": nm(n) + " kg" });
+  rows.forEach(([n, load, reps]) => {
+    const k = pre + "wt:" + n, rk = pre + "wtrx:" + n, now = reps + "|" + load, i = h("input", { class: "in", value: V[k] == null ? "" : V[k], placeholder: "kg", inputmode: "decimal", autocomplete: "off", enterkeyhint: "done", "aria-label": nm(n) + " kg" });
     i.addEventListener("input", () => setVal(slot, k, i.value));
-    box.append(h("label", { class: "wtr" }, h("span", null, nm(n), h("span", { class: "small", text: "Program: " + load })), i));
+    trackRx(slot, i, rk, now);
+    const note = h("span", { class: "carry hidden" });
+    if ((V[k] == null || V[k] === "") && !readOnly) { const c = carryFor(slot, k, rk, now, "reps", s2 => wtRx(s2, n, pre)); if (c) applyCarry(slot, i, k, rk, now, c, note); }
+    box.append(h("label", { class: "wtr" }, h("span", null, nm(n), h("span", { class: "small", text: "Program: " + load + (reps ? " · " + reps : "") }), note), i));
   });
   return box;
 }
@@ -1525,13 +1604,8 @@ function dayBlock(slot) {
   // quick row
   const done = !!(doc && doc.done);
   const db_ = h("button", { class: "done", type: "button", "aria-pressed": String(done) }, done ? "✓ Done" : "Mark done");
-  db_.addEventListener("click", () => { const on = db_.getAttribute("aria-pressed") !== "true"; db_.setAttribute("aria-pressed", String(on)); db_.textContent = on ? "✓ Done" : "Mark done"; setVal(slot, "$done", on); });
-  const rhr = h("input", { class: "in", inputmode: "numeric", placeholder: S.rhrBase ? "base " + S.rhrBase : "bpm", value: (doc && doc.rhr) || "" });
-  rhr.addEventListener("input", () => setVal(slot, "$rhr", rhr.value));
-  const rpe = h("input", { class: "in", inputmode: "numeric", placeholder: "1-10", value: (doc && doc.rpe) || "" });
-  rpe.addEventListener("input", () => setVal(slot, "$rpe", rpe.value));
-  el.append(h("div", { class: "quick" }, db_, h("label", { class: "f" }, "Morning RHR", rhr), h("label", { class: "f" }, "Session RPE", rpe)));
-  const rn = rhrNote(rhr); el.append(rn); rhr.addEventListener("input", () => rhrNote(rhr, rn));
+  db_.addEventListener("click", () => { const on = db_.getAttribute("aria-pressed") !== "true"; db_.setAttribute("aria-pressed", String(on)); db_.textContent = on ? "✓ Done" : "Mark done"; setVal(slot, "$done", on); if (on) $$("[data-carry]", el).forEach(x => x._commit && x._commit()); });
+  el.append(h("div", { class: "quick" }, db_));
   // prescription
   const rxb = h("div", { class: "rxbody", html: s.body });
   hydrate(rxb, slot, "b"); applyNames(rxb);
@@ -1550,7 +1624,7 @@ function dayBlock(slot) {
     const lg = h("div", { class: "log", html: s.log });
     $$(".lgnote", lg).forEach(n => n.remove());
     hydrate(lg, slot, "l");
-    if (wb) lg.prepend(wb);
+    if (wb) { lg.prepend(wb); commitOnUse(lg, wb); }
     if (prog === "B") {
       const ti = h("input", { class: "in", inputmode: "text", value: V0["f:Treadmill"] || "", autocomplete: "off" });
       ti.addEventListener("input", () => setVal(slot, "f:Treadmill", ti.value));
@@ -1562,9 +1636,9 @@ function dayBlock(slot) {
     const f = s.fin, V = (doc && doc.v) || {};
     const fb = h("div", { class: "rxbody", html: f.body }); hydrate(fb, slot, "fb", "fin:"); applyNames(fb);
     const fl = h("div", { class: "log", html: f.log }); hydrate(fl, slot, "fl", "fin:");
-    const fw = weightsBlock(slot, f.body, "fin:"); if (fw) fl.prepend(fw);
+    const fw = weightsBlock(slot, f.body, "fin:"); if (fw) { fl.prepend(fw); commitOnUse(fl, fw); }
     const fd = h("button", { class: "done", type: "button", "aria-pressed": String(!!V["fin:done"]) }, V["fin:done"] ? "✓ Finisher done" : "Mark finisher done");
-    fd.addEventListener("click", () => { const on = fd.getAttribute("aria-pressed") !== "true"; fd.setAttribute("aria-pressed", String(on)); fd.textContent = on ? "✓ Finisher done" : "Mark finisher done"; setVal(slot, "fin:done", on); });
+    fd.addEventListener("click", () => { const on = fd.getAttribute("aria-pressed") !== "true"; fd.setAttribute("aria-pressed", String(on)); fd.textContent = on ? "✓ Finisher done" : "Mark finisher done"; setVal(slot, "fin:done", on); if (on) $$("[data-carry]", fl).forEach(x => x._commit && x._commit()); });
     el.append(h("details", { class: "rx fin", open: true }, h("summary", null, "Finisher · ~" + f.mins + " min"),
       h("div", { class: "rxbody" }, h("h2", { class: "fint", text: f.title }), h("div", { class: "meta", text: f.src + " · straight after " + (s.kind === "str" ? "strength" : "the main session") })), fb));
     el.append(h("div", { class: "card stack" }, h("h2", { text: "Finisher log" }), fl, fd));
@@ -1576,13 +1650,6 @@ function dayBlock(slot) {
   const mc = moveCard(slot); if (mc) el.append(mc);
   el.append(navRow(slot));
   return el;
-}
-function rhrNote(inp, box) {
-  box = box || h("div", { class: "small rhrn" });
-  const r = num(inp.value), b = num(S.rhrBase);
-  box.textContent = r && b ? "RHR " + r + " against baseline " + b + ": " + (r > b ? "+" : "") + (r - b) + " bpm." + (r > b ? " Up on baseline: ease today's intensity (SF gives no threshold)." : "") : "";
-  box.classList.toggle("hidden", !(r && b));
-  return box;
 }
 function moveCard(slot) {
   const inst = slot.inst, d = slot.d;
@@ -1625,7 +1692,7 @@ function restBlock(slot) {
     h("div", { class: "meta", text: (slot.s.src || "Your rule") + (slot.moved && slot.ov == null ? " · moved here from D" + (slot.t + 1) : " · D6 and D7 rest every cycle") }),
     h("div", { class: "card stack" },
       h("p", { class: "small", text: "No training. Optional recovery work only (SASR): foam roller, trigger point, stretching, cold water, massage. Sleep after nights comes first. SF's day-7 option: 40 min stretching (cool-down holds 10-30 sec) and the lower back block." }),
-      h("div", { class: "flds" }, f("$rhr", "Morning RHR", "numeric", S.rhrBase ? "base " + S.rhrBase : "bpm"), f("r:sleep", "Sleep hrs", "decimal"), f("r:sore", "Soreness 1-10", "numeric"), f("r:bw", "Body kg", "decimal")),
+      h("div", { class: "flds" }, f("r:sleep", "Sleep hrs", "decimal"), f("r:sore", "Soreness 1-10", "numeric"), f("r:bw", "Body kg", "decimal")),
       h("div", { class: "f small" }, "Recovery done"), h("div", { class: "row" }, chips), lb),
     h("label", { class: "f" }, "Notes", notes));
 }
@@ -1895,10 +1962,6 @@ function viewProgress(v) {
   }));
   box.append(split.length ? lineChart(split, { title: "Pack march: first 5km", sub: "From each march log. Test standard: under 40:00, walking.", yfmt: fmtMin, ref: 40, refLabel: "40:00 standard" })
     : emptyChart("Pack march: first 5km", "Log the first 5km split on any pack march (A2 onward) and the trend shows here."));
-  // RHR
-  const rhr = logsSorted().filter(x => num(x.rhr)).map(x => ({ x: fmt(x.date, { weekday: undefined }), y: num(x.rhr), sub: x.iid ? x.iid + " D" + x.day : "" }));
-  box.append(rhr.length ? lineChart(rhr, { title: "Morning RHR", sub: "bpm, from each day's log", ref: num(S.rhrBase), refLabel: "baseline " + S.rhrBase, int: true })
-    : emptyChart("Morning RHR", "Enter your morning RHR on each day's log and the trend shows here."));
   // strength and weights: every exercise with a logged weight (or jump distance); Est. 1RM for the % lifts
   const kn = kgNames();
   if (kn.length) {
@@ -2007,7 +2070,7 @@ function viewSetup(v) {
   const numIn = (k, lab, im, ph) => { const i = h("input", { class: "in", inputmode: im, placeholder: ph || "", value: S[k] || "" }); i.addEventListener("input", () => { S[k] = i.value; queueSettings(); }); if (k === "age") i.addEventListener("change", () => render()); return h("label", { class: "f" }, lab, i); };
   box.append(h("div", { class: "card stack" }, h("h2", { text: "Your numbers" }), h("div", { class: "flds" },
     numIn("age", "Age (sets heart-rate targets)", "numeric", P.defaultAge ? String(P.defaultAge) : "years"),
-    numIn("rhrBase", "RHR baseline (bpm)", "numeric"), numIn("tt1600", "1600m time (sets MAS)", "text", "e.g. 5:40"),
+    numIn("tt1600", "1600m time (sets MAS)", "text", "e.g. 5:40"),
     numIn("vestKg", "TRG test vest (kg)", "decimal", "when known")),
     h("p", { class: "small", text: "HRmax " + hrmax() + " (SASR: 206.9 - 0.67 x age " + (ageNow() || 30) + "). ESD RPE 9 = " + Math.round(hrmax() * .9) + " bpm. GPP RPE 6-7 = " + Math.round(hrmax() * .7) + "-" + Math.round(hrmax() * .8) + " bpm." + (ageNow() ? "" : " Add your age above; until then targets assume age 30.") })));
   // kit
